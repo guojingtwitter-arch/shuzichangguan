@@ -1,0 +1,28 @@
+{
+  "output": "C:\\Users\\kamao\\Documents\\New project\\outputs\\manual-20260601-hehuoren\\presentations\\ningde-yinfa\\output\\宁德银发合伙人场景建设支撑.pptx",
+  "outputBytes": 17692,
+  "slideCount": 1,
+  "slideSize": {
+    "width": 1280,
+    "height": 720
+  },
+  "previewDir": "C:\\Users\\kamao\\Documents\\New project\\outputs\\manual-20260601-hehuoren\\presentations\\ningde-yinfa\\preview",
+  "previewPaths": [
+    "C:\\Users\\kamao\\Documents\\New project\\outputs\\manual-20260601-hehuoren\\presentations\\ningde-yinfa\\preview\\slide-01.png"
+  ],
+  "layoutDir": "C:\\Users\\kamao\\Documents\\New project\\outputs\\manual-20260601-hehuoren\\presentations\\ningde-yinfa\\layout",
+  "layoutResults": [
+    {
+      "layoutPath": "C:\\Users\\kamao\\Documents\\New project\\outputs\\manual-20260601-hehuoren\\presentations\\ningde-yinfa\\layout\\slide-01.layout.json"
+    }
+  ],
+  "contactSheet": "C:\\Users\\kamao\\Documents\\New project\\outputs\\manual-20260601-hehuoren\\presentations\\ningde-yinfa\\preview\\contact-sheet.png",
+  "slides": [
+    {
+      "index": 1,
+      "requestedSlideNumber": 1,
+      "modulePath": "C:\\Users\\kamao\\Documents\\New project\\outputs\\manual-20260601-hehuoren\\presentations\\ningde-yinfa\\slides\\slide-01.mjs",
+      "exportName": "slide01"
+    }
+  ]
+}
