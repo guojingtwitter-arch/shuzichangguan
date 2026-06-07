@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA 客户端路由 fallback — 所有非静态资源请求返回 index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
