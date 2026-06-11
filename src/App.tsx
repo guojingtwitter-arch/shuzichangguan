@@ -35,7 +35,7 @@ type StoreId =
   | 'xianglu'
   | 'wanda';
 type Tab = 'project' | 'source' | 'payment' | 'store';
-type DashboardType = 'venue' | 'recognition';
+type DashboardType = 'venue' | 'simpleRevenue' | 'recognition' | 'fitness';
 type Project = 'venue' | 'storedCard' | 'courseCard' | 'passCard' | 'goods';
 type Source = 'miniProgram' | 'cashier' | 'meituan' | 'douyin';
 type Payment = 'wechat' | 'payCode' | 'storedBalance' | 'offline' | 'corporate' | 'free' | 'meituanGroup' | 'douyinGroup';
@@ -49,6 +49,7 @@ type RevenueOrder = {
   receivable: number;
   discount: number;
   paid: number;
+  refund?: number;
   orders: number;
   dateBucket: 'today' | 'week' | 'month';
 };
@@ -97,38 +98,38 @@ const sourceMeta: Record<Source, { name: string; tag?: string; color: string }> 
 
 const paymentMeta: Record<Payment, { name: string; revenue: boolean; note: string; icon: typeof Wallet }> = {
   wechat: { name: '微信支付', revenue: true, note: '线上直收', icon: Wallet },
-  payCode: { name: '付款码支付', revenue: true, note: '收银台扫码', icon: ReceiptText },
+  payCode: { name: '商户扫码', revenue: true, note: '收银台扫码收款', icon: ReceiptText },
   storedBalance: { name: '储值卡支付', revenue: false, note: '余额消耗，不重复计入营收', icon: CreditCard },
   offline: { name: '线下付款', revenue: true, note: '现金或其他线下确认', icon: Store },
-  corporate: { name: '对公收款', revenue: true, note: '当日确认收款', icon: Landmark },
+  corporate: { name: '对公转账', revenue: true, note: '当日确认收款', icon: Landmark },
   free: { name: '无需支付', revenue: false, note: '金额为 0，保留订单数', icon: CircleDollarSign },
   meituanGroup: { name: '美团核销实付', revenue: true, note: '第三方团购', icon: TicketCheck },
   douyinGroup: { name: '抖音核销实付', revenue: true, note: '第三方团购', icon: TicketCheck },
 };
 
 const orders: RevenueOrder[] = [
-  { id: 'R001', store: 'north', project: 'venue', source: 'miniProgram', payment: 'wechat', receivable: 16800, discount: 920, paid: 15880, orders: 79, dateBucket: 'today' },
+  { id: 'R001', store: 'north', project: 'venue', source: 'miniProgram', payment: 'wechat', receivable: 16800, discount: 920, paid: 15880, refund: 360, orders: 79, dateBucket: 'today' },
   { id: 'R002', store: 'north', project: 'venue', source: 'cashier', payment: 'storedBalance', receivable: 8200, discount: 240, paid: 7960, orders: 31, dateBucket: 'today' },
-  { id: 'R003', store: 'north', project: 'storedCard', source: 'cashier', payment: 'payCode', receivable: 24000, discount: 1600, paid: 22400, orders: 18, dateBucket: 'today' },
+  { id: 'R003', store: 'north', project: 'storedCard', source: 'cashier', payment: 'payCode', receivable: 24000, discount: 1600, paid: 22400, refund: 1000, orders: 18, dateBucket: 'today' },
   { id: 'R004', store: 'river', project: 'courseCard', source: 'miniProgram', payment: 'wechat', receivable: 18600, discount: 1200, paid: 17400, orders: 15, dateBucket: 'today' },
   { id: 'R005', store: 'river', project: 'passCard', source: 'cashier', payment: 'offline', receivable: 12800, discount: 560, paid: 12240, orders: 26, dateBucket: 'today' },
   { id: 'R006', store: 'east', project: 'goods', source: 'cashier', payment: 'payCode', receivable: 6200, discount: 180, paid: 6020, orders: 96, dateBucket: 'today' },
   { id: 'R007', store: 'east', project: 'goods', source: 'cashier', payment: 'offline', receivable: 2380, discount: 0, paid: 2380, orders: 34, dateBucket: 'today' },
-  { id: 'R008', store: 'north', project: 'venue', source: 'meituan', payment: 'meituanGroup', receivable: 9400, discount: 700, paid: 8700, orders: 44, dateBucket: 'today' },
+  { id: 'R008', store: 'north', project: 'venue', source: 'meituan', payment: 'meituanGroup', receivable: 9400, discount: 700, paid: 8700, refund: 240, orders: 44, dateBucket: 'today' },
   { id: 'R009', store: 'river', project: 'venue', source: 'douyin', payment: 'douyinGroup', receivable: 7600, discount: 520, paid: 7080, orders: 39, dateBucket: 'today' },
   { id: 'R010', store: 'east', project: 'courseCard', source: 'cashier', payment: 'corporate', receivable: 22000, discount: 2000, paid: 20000, orders: 3, dateBucket: 'today' },
   { id: 'R011', store: 'north', project: 'passCard', source: 'miniProgram', payment: 'free', receivable: 1200, discount: 1200, paid: 0, orders: 6, dateBucket: 'today' },
-  { id: 'W001', store: 'north', project: 'venue', source: 'miniProgram', payment: 'wechat', receivable: 68600, discount: 4200, paid: 64400, orders: 318, dateBucket: 'week' },
+  { id: 'W001', store: 'north', project: 'venue', source: 'miniProgram', payment: 'wechat', receivable: 68600, discount: 4200, paid: 64400, refund: 2800, orders: 318, dateBucket: 'week' },
   { id: 'W002', store: 'river', project: 'storedCard', source: 'cashier', payment: 'payCode', receivable: 82000, discount: 5600, paid: 76400, orders: 55, dateBucket: 'week' },
   { id: 'W003', store: 'east', project: 'goods', source: 'cashier', payment: 'offline', receivable: 21400, discount: 640, paid: 20760, orders: 302, dateBucket: 'week' },
-  { id: 'W004', store: 'river', project: 'courseCard', source: 'douyin', payment: 'douyinGroup', receivable: 34600, discount: 2600, paid: 32000, orders: 128, dateBucket: 'week' },
+  { id: 'W004', store: 'river', project: 'courseCard', source: 'douyin', payment: 'douyinGroup', receivable: 34600, discount: 2600, paid: 32000, refund: 1200, orders: 128, dateBucket: 'week' },
   { id: 'W005', store: 'north', project: 'venue', source: 'meituan', payment: 'meituanGroup', receivable: 29600, discount: 1800, paid: 27800, orders: 116, dateBucket: 'week' },
-  { id: 'M001', store: 'north', project: 'venue', source: 'cashier', payment: 'storedBalance', receivable: 144000, discount: 6200, paid: 137800, orders: 472, dateBucket: 'month' },
+  { id: 'M001', store: 'north', project: 'venue', source: 'cashier', payment: 'storedBalance', receivable: 144000, discount: 6200, paid: 137800, refund: 4200, orders: 472, dateBucket: 'month' },
   { id: 'M002', store: 'river', project: 'courseCard', source: 'miniProgram', payment: 'wechat', receivable: 210000, discount: 13000, paid: 197000, orders: 160, dateBucket: 'month' },
   { id: 'M003', store: 'east', project: 'storedCard', source: 'cashier', payment: 'corporate', receivable: 188000, discount: 11200, paid: 176800, orders: 86, dateBucket: 'month' },
   { id: 'M004', store: 'east', project: 'passCard', source: 'miniProgram', payment: 'wechat', receivable: 118000, discount: 7800, paid: 110200, orders: 264, dateBucket: 'month' },
   { id: 'M005', store: 'north', project: 'goods', source: 'cashier', payment: 'payCode', receivable: 39000, discount: 1100, paid: 37900, orders: 691, dateBucket: 'month' },
-  { id: 'M006', store: 'river', project: 'venue', source: 'meituan', payment: 'meituanGroup', receivable: 76000, discount: 5200, paid: 70800, orders: 298, dateBucket: 'month' },
+  { id: 'M006', store: 'river', project: 'venue', source: 'meituan', payment: 'meituanGroup', receivable: 76000, discount: 5200, paid: 70800, refund: 3600, orders: 298, dateBucket: 'month' },
   { id: 'M007', store: 'east', project: 'venue', source: 'douyin', payment: 'douyinGroup', receivable: 62000, discount: 4200, paid: 57800, orders: 233, dateBucket: 'month' },
 ];
 
@@ -265,7 +266,7 @@ function App() {
   const filteredOrders = useMemo(() => {
     const bucket = period === 'custom' ? ['today', 'week'] : [period];
     return orders.filter((order) => {
-      const inScope = dashboard === 'venue' || (order.project !== 'venue' && order.project !== 'storedCard');
+      const inScope = dashboard === 'venue' || dashboard === 'simpleRevenue' || (order.project !== 'venue' && order.project !== 'storedCard');
       return inScope && bucket.includes(order.dateBucket) && (store === 'all' || order.store === store);
     });
   }, [dashboard, period, store]);
@@ -294,6 +295,7 @@ function App() {
         <nav className="px-3 py-4">
           {[
             { id: 'venue', label: '营收看板', icon: BarChart3 },
+            { id: 'simpleRevenue', label: '营收报表', icon: CircleDollarSign },
             { id: 'recognition', label: '健身行业确认收入看板', icon: ReceiptText },
           ].map((item) => (
             <button
@@ -319,7 +321,7 @@ function App() {
                 <Store size={14} />
                 管理后台 / 营收分析
               </div>
-              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'venue' ? '收入分析看板' : '健身行业确认收入看板'}</h1>
+              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'recognition' ? '健身行业确认收入看板' : dashboard === 'simpleRevenue' ? '营收统计' : '收入分析看板'}</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <IconAction label="刷新">
@@ -335,6 +337,8 @@ function App() {
         <section className="px-4 py-4 lg:px-6">
           {dashboard === 'recognition' ? (
             <RecognitionIncomeDashboard store={store} onStoreChange={setStore} />
+          ) : dashboard === 'simpleRevenue' ? (
+            <SimpleRevenueDashboard period={period} store={store} onPeriodChange={setPeriod} onStoreChange={setStore} orders={filteredOrders} />
           ) : (
             <>
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
@@ -419,6 +423,162 @@ function App() {
       </main>
     </div>
   );
+}
+
+
+function SimpleRevenueDashboard({
+  period,
+  store,
+  onPeriodChange,
+  onStoreChange,
+  orders,
+}: {
+  period: Period;
+  store: StoreId;
+  onPeriodChange: (period: Period) => void;
+  onStoreChange: (store: StoreId) => void;
+  orders: RevenueOrder[];
+}) {
+  const totals = useMemo(() => summarize(orders), [orders]);
+  const projectRows = useMemo(() => orderProjectRows(groupBy(orders, 'project')), [orders]);
+  const sourceRows = useMemo(() => groupBy(orders, 'source'), [orders]);
+  const paymentRows = useMemo(
+    () => groupBy(orders.filter((order) => paymentMeta[order.payment].revenue), 'payment'),
+    [orders],
+  );
+  const trendRows = useMemo(() => buildRevenueTrend(orders), [orders]);
+  const activePeriod = periods.find((item) => item.id === period)!;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
+        <Segmented value={period} onChange={onPeriodChange} />
+        <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，按付款时间归属收入。</div>
+        <div className="rounded-md bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
+          实际营收金额 = 销售总额 - 退款金额 - 储值卡消耗金额
+        </div>
+      </div>
+
+      <section className="grid gap-3 lg:grid-cols-[1.35fr_1fr]">
+        <div className="rounded-lg border border-emerald-500 bg-emerald-600 p-5 text-white shadow-sm shadow-emerald-200/60">
+          <div className="text-xs font-bold text-white/70">实际营收金额</div>
+          <div className="mt-2 text-4xl font-black tracking-normal sm:text-5xl">{money(totals.actualRevenue)}</div>
+          <div className="mt-3 text-xs font-semibold leading-5 text-white/70">扣除退款及储值卡余额消耗后的本期经营净收入。</div>
+          <div className="mt-5 grid gap-2 sm:grid-cols-3">
+            <MiniMetric label="销售总额" value={money(totals.sales)} />
+            <MiniMetric label="退款金额" value={money(totals.refund)} tone="warning" />
+            <MiniMetric label="储值卡消耗" value={money(totals.storedBalance)} tone="muted" />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/40">
+          <div className="flex items-center gap-2 text-sm font-black text-slate-800">
+            <ReceiptText size={17} />
+            财务口径
+          </div>
+          <div className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-600">
+            <p>销售总额为统计期内已支付订单金额，退款金额作为销售冲减项。</p>
+            <p>储值卡消耗金额属于预收余额使用，本期不重复确认为实际营收。</p>
+            <p>储值卡销售作为独立营收项目计入销售总额。</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-3">
+        <SimpleRankPanel title="按营收项目" rows={projectRows} type="project" total={totals.actualRevenue} />
+        <SimpleRankPanel title="按销售渠道" rows={sourceRows} type="source" total={totals.actualRevenue} />
+        <SimpleRankPanel title="按收款方式" rows={paymentRows} type="payment" total={Math.max(totals.actualRevenue, 1)} caption="不含储值卡支付" />
+      </section>
+
+      <Panel title="实际营收趋势" icon={BarChart3} subtitle="净额口径">
+        <RevenueTrend rows={trendRows} />
+      </Panel>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'warning' | 'muted' }) {
+  return (
+    <div className={cn('rounded-md px-3 py-2.5', tone === 'warning' ? 'bg-amber-400/20' : tone === 'muted' ? 'bg-white/10' : 'bg-white/15')}>
+      <div className="text-[11px] font-bold text-white/65">{label}</div>
+      <div className="mt-1 text-lg font-black tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function SimpleRankPanel({
+  title,
+  rows,
+  type,
+  total,
+  caption,
+}: {
+  title: string;
+  rows: { key: string; total: ReturnType<typeof summarize> }[];
+  type: 'project' | 'source' | 'payment';
+  total: number;
+  caption?: string;
+}) {
+  return (
+    <Panel title={title} icon={type === 'payment' ? Wallet : type === 'source' ? Store : BarChart3} action={caption}>
+      <div className="space-y-3">
+        {rows.map((row) => {
+          const amount = Math.max(row.total.actualRevenue, 0);
+          const percent = total > 0 ? Math.round((amount / total) * 100) : 0;
+          return (
+            <div key={row.key} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm font-bold">
+                <div className="min-w-0 flex-1"><RowName rowKey={row.key} type={type} /></div>
+                <div className="shrink-0 text-right tabular-nums text-slate-900">{money(amount)}</div>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(percent, 100)}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+function RevenueTrend({ rows }: { rows: { label: string; value: number }[] }) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+
+  return (
+    <div className="flex h-56 items-end gap-2 sm:gap-3">
+      {rows.map((row) => (
+        <div key={row.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+          <div className="flex w-full flex-1 items-end rounded-md bg-slate-50 px-1.5 pt-2">
+            <div
+              className="w-full rounded-t-md bg-emerald-500"
+              style={{ height: `${Math.max((row.value / max) * 100, 8)}%` }}
+              title={`${row.label} ${money(row.value)}`}
+            />
+          </div>
+          <div className="w-full truncate text-center text-[11px] font-bold text-slate-500">{row.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildRevenueTrend(rows: RevenueOrder[]) {
+  const labels = ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00'];
+  const total = summarize(rows).actualRevenue;
+  const weights = [0.08, 0.12, 0.1, 0.16, 0.18, 0.24, 0.12];
+  let used = 0;
+
+  return labels.map((label, index) => {
+    const isLast = index === labels.length - 1;
+    const value = isLast ? Math.max(total - used, 0) : Math.max(Math.round(total * weights[index]), 0);
+    used += value;
+    return { label, value };
+  });
 }
 
 function RecognitionIncomeDashboard({ store, onStoreChange }: { store: StoreId; onStoreChange: (store: StoreId) => void }) {
@@ -523,7 +683,7 @@ function RecognitionIncomeDashboard({ store, onStoreChange }: { store: StoreId; 
               </button>
             ))}
           </div>
-          <RecognitionDetailTable key={`${detailTab}-${recognitionMonth}-${store}`} rows={detailTab === 'recognized' ? activeCards : pendingDetailCards} month={recognitionMonth} />
+          <RecognitionDetailTable rows={detailTab === 'recognized' ? activeCards : pendingDetailCards} month={recognitionMonth} />
         </Panel>
       </section>
 
@@ -572,7 +732,7 @@ function getRecognizedToMonth(item: RecognitionCardSale, month: string) {
   const currentIndex = getRecognitionPeriodIndex(item, month);
   const latestIndex = currentIndex === null ? Math.min(Math.max(getMonthNumber(month) - getMonthNumber(item.paidAt.slice(0, 7)), -1), item.periods - 1) : currentIndex;
   if (latestIndex < 0) return 0;
-  return Array.from({ length: latestIndex + 1 }).reduce((sum, _, index) => sum + getPeriodAmount(item, index), 0);
+  return Array.from({ length: latestIndex + 1 }).reduce<number>((sum, _, index) => sum + getPeriodAmount(item, index), 0);
 }
 
 function getPendingRecognitionAmount(item: RecognitionCardSale, month: string) {
@@ -898,16 +1058,17 @@ function summarize(rows: RevenueOrder[]) {
       acc.discount += row.discount;
       acc.sales += row.paid;
       acc.orders += row.orders;
+      acc.refund += row.refund ?? 0;
       if (row.payment === 'storedBalance') acc.storedBalance += row.paid;
       if (row.project === 'storedCard') acc.storedCardRevenue += row.paid;
       if (row.payment === 'meituanGroup') acc.meituan += row.paid;
       if (row.payment === 'douyinGroup') acc.douyin += row.paid;
       return acc;
     },
-    { receivable: 0, discount: 0, sales: 0, storedBalance: 0, storedCardRevenue: 0, meituan: 0, douyin: 0, orders: 0 },
+    { receivable: 0, discount: 0, sales: 0, refund: 0, storedBalance: 0, storedCardRevenue: 0, meituan: 0, douyin: 0, orders: 0 },
   );
 
-  return { ...base, actualRevenue: base.sales - base.storedBalance };
+  return { ...base, actualRevenue: base.sales - base.refund - base.storedBalance };
 }
 
 function groupBy<T extends keyof RevenueOrder>(rows: RevenueOrder[], key: T) {
