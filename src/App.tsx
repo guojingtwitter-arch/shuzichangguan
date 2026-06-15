@@ -35,10 +35,11 @@ type StoreId =
   | 'xianglu'
   | 'wanda';
 type Tab = 'project' | 'source' | 'payment' | 'store';
-type DashboardType = 'venue' | 'simpleRevenue' | 'recognition' | 'fitness';
+type DashboardType = 'venue' | 'simpleRevenue' | 'venueBooking' | 'courseTraining' | 'recognition' | 'fitness';
 type Project = 'venue' | 'storedCard' | 'courseCard' | 'passCard' | 'goods';
 type Source = 'miniProgram' | 'cashier' | 'meituan' | 'douyin';
 type Payment = 'wechat' | 'payCode' | 'storedBalance' | 'offline' | 'corporate' | 'free' | 'meituanGroup' | 'douyinGroup';
+type TimeGranularity = 1 | 2 | 3;
 
 type RevenueOrder = {
   id: string;
@@ -110,6 +111,7 @@ const paymentMeta: Record<Payment, { name: string; revenue: boolean; note: strin
 const orders: RevenueOrder[] = [
   { id: 'R001', store: 'north', project: 'venue', source: 'miniProgram', payment: 'wechat', receivable: 16800, discount: 920, paid: 15880, refund: 360, orders: 79, dateBucket: 'today' },
   { id: 'R002', store: 'north', project: 'venue', source: 'cashier', payment: 'storedBalance', receivable: 8200, discount: 240, paid: 7960, orders: 31, dateBucket: 'today' },
+  { id: 'R012', store: 'north', project: 'venue', source: 'cashier', payment: 'payCode', receivable: 6800, discount: 260, paid: 6540, refund: 180, orders: 22, dateBucket: 'today' },
   { id: 'R003', store: 'north', project: 'storedCard', source: 'cashier', payment: 'payCode', receivable: 24000, discount: 1600, paid: 22400, refund: 1000, orders: 18, dateBucket: 'today' },
   { id: 'R004', store: 'river', project: 'courseCard', source: 'miniProgram', payment: 'wechat', receivable: 18600, discount: 1200, paid: 17400, orders: 15, dateBucket: 'today' },
   { id: 'R005', store: 'river', project: 'passCard', source: 'cashier', payment: 'offline', receivable: 12800, discount: 560, paid: 12240, orders: 26, dateBucket: 'today' },
@@ -180,7 +182,7 @@ type RecognitionCardSale = {
   id: string;
   member: string;
   store: Exclude<StoreId, 'all'>;
-  category: 'timeCard' | 'privateCourse' | 'goods';
+  category: 'timeCard' | 'privateCourse' | 'storedValue' | 'goods';
   product: string;
   paidAt: string;
   paid: number;
@@ -232,18 +234,24 @@ const recognitionCardSales: RecognitionCardSale[] = [
   { id: 'T011', member: '陆遥', store: 'softF', category: 'timeCard', product: '自助训练半月卡', paidAt: '2026-06-06', paid: 899, periods: 1, orders: 1 },
   { id: 'T012', member: '陈森', store: 'huaqiao', category: 'privateCourse', product: '1V1私教包月卡', paidAt: '2026-06-19', paid: 1999, periods: 1, orders: 1 },
   { id: 'T013', member: '李想', store: 'lvcuo', category: 'goods', product: '蛋白粉套装', paidAt: '2026-06-21', paid: 699, periods: 1, orders: 1 },
+  { id: 'SV001', member: '\u5f20\u822a', store: 'softB', category: 'storedValue', product: '\u50a8\u503c\u5361 2000', paidAt: '2026-06-02', paid: 2000, periods: 1, orders: 1 },
+  { id: 'SV002', member: '\u6797\u53ef', store: 'softF', category: 'storedValue', product: '\u50a8\u503c\u5361 3000', paidAt: '2026-05-12', paid: 3000, periods: 1, orders: 1 },
+  { id: 'SV003', member: '\u9648\u5b89', store: 'huaqiao', category: 'storedValue', product: '\u50a8\u503c\u5361 5000', paidAt: '2026-04-20', paid: 5000, periods: 1, orders: 1 },
+  { id: 'SV004', member: '\u5468\u5b81', store: 'wanda', category: 'storedValue', product: '\u50a8\u503c\u5361 1000', paidAt: '2026-06-16', paid: 1000, periods: 1, orders: 1 },
 ];
 
 const recognitionCategoryMeta = {
-  timeCard: { name: '次卡/时间卡销售', icon: CreditCard },
-  privateCourse: { name: '私教课程销售', icon: TicketCheck },
-  goods: { name: '商品销售', icon: ShoppingBag },
+  timeCard: { name: '\u6b21/\u65f6\u95f4\u5361', icon: CreditCard },
+  privateCourse: { name: '\u79c1\u6559\u5361', icon: TicketCheck },
+  storedValue: { name: '\u50a8\u503c\u5361\u9500\u552e', icon: Wallet },
+  goods: { name: '\u5546\u54c1\u9500\u552e', icon: ShoppingBag },
 } satisfies Record<RecognitionCardSale['category'], { name: string; icon: typeof CreditCard }>;
 
 const recognitionCategoryRevenueTitle = {
-  timeCard: '次卡/时间卡本月确认收入',
-  privateCourse: '私教课程本月确认收入',
-  goods: '商品销售本月确认收入',
+  timeCard: '\u6b21/\u65f6\u95f4\u5361',
+  privateCourse: '\u79c1\u6559\u5361',
+  storedValue: '\u50a8\u503c\u5361',
+  goods: '\u5546\u54c1\u9500\u552e',
 } satisfies Record<RecognitionCardSale['category'], string>;
 
 const defaultRecognitionMonth = '2026-06';
@@ -257,16 +265,17 @@ const recognitionMonthOptions = [
 ];
 
 function App() {
-  const [dashboard, setDashboard] = useState<DashboardType>('venue');
+  const [dashboard, setDashboard] = useState<DashboardType>('simpleRevenue');
   const [period, setPeriod] = useState<Period>('today');
   const [store, setStore] = useState<StoreId>('all');
   const [tab, setTab] = useState<Tab>('project');
   const [selectedProject, setSelectedProject] = useState<Project>('passCard');
+  const [venueGranularity, setVenueGranularity] = useState<TimeGranularity>(1);
 
   const filteredOrders = useMemo(() => {
     const bucket = period === 'custom' ? ['today', 'week'] : [period];
     return orders.filter((order) => {
-      const inScope = dashboard === 'venue' || dashboard === 'simpleRevenue' || (order.project !== 'venue' && order.project !== 'storedCard');
+      const inScope = dashboard === 'venue' || dashboard === 'simpleRevenue' || dashboard === 'venueBooking' || (order.project !== 'venue' && order.project !== 'storedCard');
       return inScope && bucket.includes(order.dateBucket) && (store === 'all' || order.store === store);
     });
   }, [dashboard, period, store]);
@@ -294,9 +303,10 @@ function App() {
         </div>
         <nav className="px-3 py-4">
           {[
-            { id: 'venue', label: '营收看板', icon: BarChart3 },
             { id: 'simpleRevenue', label: '营收报表', icon: CircleDollarSign },
-            { id: 'recognition', label: '健身行业确认收入看板', icon: ReceiptText },
+            { id: 'venueBooking', label: '场地预订报表', icon: CalendarDays },
+            { id: 'courseTraining', label: '课程培训报表', icon: TicketCheck },
+            { id: 'recognition', label: '\u786e\u8ba4\u6536\u5165\u62a5\u8868', icon: ReceiptText },
           ].map((item) => (
             <button
               key={item.id}
@@ -321,7 +331,7 @@ function App() {
                 <Store size={14} />
                 管理后台 / 营收分析
               </div>
-              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'recognition' ? '健身行业确认收入看板' : dashboard === 'simpleRevenue' ? '营收统计' : '收入分析看板'}</h1>
+              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'recognition' ? '\u786e\u8ba4\u6536\u5165\u62a5\u8868' : dashboard === 'courseTraining' ? '课程培训报表' : dashboard === 'venueBooking' ? '场地预订报表' : dashboard === 'simpleRevenue' ? '营收统计' : '收入分析看板'}</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <IconAction label="刷新">
@@ -339,6 +349,10 @@ function App() {
             <RecognitionIncomeDashboard store={store} onStoreChange={setStore} />
           ) : dashboard === 'simpleRevenue' ? (
             <SimpleRevenueDashboard period={period} store={store} onPeriodChange={setPeriod} onStoreChange={setStore} orders={filteredOrders} />
+          ) : dashboard === 'venueBooking' ? (
+            <VenueBookingReport period={period} store={store} granularity={venueGranularity} onPeriodChange={setPeriod} onStoreChange={setStore} onGranularityChange={setVenueGranularity} orders={filteredOrders} />
+          ) : dashboard === 'courseTraining' ? (
+            <CourseTrainingReport period={period} onPeriodChange={setPeriod} />
           ) : (
             <>
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
@@ -446,71 +460,62 @@ function SimpleRevenueDashboard({
     () => groupBy(orders.filter((order) => paymentMeta[order.payment].revenue), 'payment'),
     [orders],
   );
-  const trendRows = useMemo(() => buildRevenueTrend(orders), [orders]);
   const activePeriod = periods.find((item) => item.id === period)!;
+  const [analysisTab, setAnalysisTab] = useState<'summary' | 'court'>('summary');
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
-        <Segmented value={period} onChange={onPeriodChange} />
-        <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，按付款时间归属收入。</div>
-        <div className="rounded-md bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
-          实际营收金额 = 销售总额 - 退款金额 - 储值卡消耗金额
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmented value={period} onChange={onPeriodChange} />
+          <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
         </div>
       </div>
 
-      <section className="grid gap-3 lg:grid-cols-[1.35fr_1fr]">
-        <div className="rounded-lg border border-emerald-500 bg-emerald-600 p-5 text-white shadow-sm shadow-emerald-200/60">
-          <div className="text-xs font-bold text-white/70">实际营收金额</div>
-          <div className="mt-2 text-4xl font-black tracking-normal sm:text-5xl">{money(totals.actualRevenue)}</div>
-          <div className="mt-3 text-xs font-semibold leading-5 text-white/70">扣除退款及储值卡余额消耗后的本期经营净收入。</div>
-          <div className="mt-5 grid gap-2 sm:grid-cols-3">
-            <MiniMetric label="销售总额" value={money(totals.sales)} />
-            <MiniMetric label="退款金额" value={money(totals.refund)} tone="warning" />
-            <MiniMetric label="储值卡消耗" value={money(totals.storedBalance)} tone="muted" />
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/40">
-          <div className="flex items-center gap-2 text-sm font-black text-slate-800">
-            <ReceiptText size={17} />
-            财务口径
-          </div>
-          <div className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-600">
-            <p>销售总额为统计期内已支付订单金额，退款金额作为销售冲减项。</p>
-            <p>储值卡消耗金额属于预收余额使用，本期不重复确认为实际营收。</p>
-            <p>储值卡销售作为独立营收项目计入销售总额。</p>
-          </div>
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
+        <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
+          <BillFormulaItem label="实际营收金额" value={money(totals.actualRevenue)} primary />
+          <FormulaOperator value="=" />
+          <BillFormulaItem label="销售总额" value={money(totals.sales)} note="统计期内已支付订单金额" />
+          <FormulaOperator value="-" />
+          <BillFormulaItem label="退款金额" value={money(totals.refund)} note="销售冲减项" />
+          <FormulaOperator value="-" />
+          <BillFormulaItem label="储值卡消耗" value={money(totals.storedBalance)} note="预收余额使用，不重复确认营收" />
         </div>
       </section>
+
+      <div className="text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}，按付款时间归属收入。</div>
 
       <section className="grid gap-4 xl:grid-cols-3">
-        <SimpleRankPanel title="按营收项目" rows={projectRows} type="project" total={totals.actualRevenue} />
-        <SimpleRankPanel title="按销售渠道" rows={sourceRows} type="source" total={totals.actualRevenue} />
-        <SimpleRankPanel title="按收款方式" rows={paymentRows} type="payment" total={Math.max(totals.actualRevenue, 1)} caption="不含储值卡支付" />
+        <FinancialSummaryPanel title="项目统计" rows={projectRows} type="project" total={totals.actualRevenue} />
+        <FinancialSummaryPanel title="销售渠道统计" rows={sourceRows} type="source" total={totals.actualRevenue} />
+        <FinancialSummaryPanel title="收款方式统计" rows={paymentRows} type="payment" total={Math.max(totals.actualRevenue, 1)} caption="不含储值卡支付" />
       </section>
 
-      <Panel title="实际营收趋势" icon={BarChart3} subtitle="净额口径">
-        <RevenueTrend rows={trendRows} />
-      </Panel>
     </div>
   );
 }
 
-function MiniMetric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'warning' | 'muted' }) {
+function BillFormulaItem({ label, value, note, primary }: { label: string; value: string; note?: string; primary?: boolean }) {
   return (
-    <div className={cn('rounded-md px-3 py-2.5', tone === 'warning' ? 'bg-amber-400/20' : tone === 'muted' ? 'bg-white/10' : 'bg-white/15')}>
-      <div className="text-[11px] font-bold text-white/65">{label}</div>
-      <div className="mt-1 text-lg font-black tabular-nums">{value}</div>
+    <div className={cn('min-w-0 border-slate-100 xl:border-r xl:pr-6', primary && 'xl:pr-8')}>
+      <div className="flex items-center gap-1.5 text-sm font-black text-slate-600">
+        {label}
+        {!primary && <CircleDollarSign size={15} className="text-slate-400" />}
+      </div>
+      <div className={cn('mt-3 font-black tracking-normal text-slate-900', primary ? 'text-4xl' : 'text-3xl')}>{value}</div>
+      {note && <div className="mt-2 text-xs font-semibold leading-5 text-slate-500">{note}</div>}
     </div>
   );
 }
 
-function SimpleRankPanel({
+function FormulaOperator({ value }: { value: '=' | '-' }) {
+  return (
+    <div className="hidden text-2xl font-black text-slate-900 xl:block">{value}</div>
+  );
+}
+
+function FinancialSummaryPanel({
   title,
   rows,
   type,
@@ -523,185 +528,1382 @@ function SimpleRankPanel({
   total: number;
   caption?: string;
 }) {
+  const colors = ['#e96a7a', '#a855f7', '#60a5fa', '#22c55e', '#f59e0b', '#94a3b8'];
+  const values = rows.map((row) => Math.max(row.total.actualRevenue, 0));
+  const sum = values.reduce((acc, value) => acc + value, 0);
+  const denominator = total > 0 ? total : sum;
+  const radius = 50;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
   return (
     <Panel title={title} icon={type === 'payment' ? Wallet : type === 'source' ? Store : BarChart3} action={caption}>
-      <div className="space-y-3">
-        {rows.map((row) => {
-          const amount = Math.max(row.total.actualRevenue, 0);
-          const percent = total > 0 ? Math.round((amount / total) * 100) : 0;
-          return (
-            <div key={row.key} className="space-y-1.5">
-              <div className="flex items-center justify-between gap-3 text-sm font-bold">
-                <div className="min-w-0 flex-1"><RowName rowKey={row.key} type={type} /></div>
-                <div className="shrink-0 text-right tabular-nums text-slate-900">{money(amount)}</div>
+      <div className="grid items-center gap-3 md:grid-cols-[180px_1fr]">
+        <div className="relative mx-auto h-44 w-44">
+          <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
+            <circle cx="70" cy="70" r={radius} fill="none" stroke="#eef2f7" strokeWidth="20" />
+            {rows.map((row, index) => {
+              const value = values[index];
+              const length = sum > 0 ? (value / sum) * circumference : 0;
+              const segmentOffset = offset;
+              offset += length;
+
+              return (
+                <circle
+                  key={row.key}
+                  cx="70"
+                  cy="70"
+                  r={radius}
+                  fill="none"
+                  stroke={colors[index % colors.length]}
+                  strokeWidth="20"
+                  strokeDasharray={`${length} ${circumference - length}`}
+                  strokeDashoffset={-segmentOffset}
+                />
+              );
+            })}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <div className="text-xl font-black tracking-normal text-slate-900">{money(sum)}</div>
+            <div className="mt-1 text-[11px] font-bold text-slate-400">实际营收</div>
+          </div>
+        </div>
+        <div className="space-y-2.5">
+          {rows.map((row, index) => {
+            const value = values[index];
+            const percent = denominator > 0 ? ((value / denominator) * 100).toFixed(1) + '%' : '0.0%';
+
+            return (
+              <div key={row.key} className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                <div className="min-w-0 flex-1">
+                  <div className="min-w-0 text-sm font-black text-slate-700">
+                    <RowName rowKey={row.key} type={type} compact />
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
+                    <span className="tabular-nums text-slate-900">{money(value)}</span>
+                    <span className="text-xs text-slate-400">占比 {percent}</span>
+                  </div>
+                </div>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(percent, 100)}%` }} />
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </Panel>
   );
 }
 
-function RevenueTrend({ rows }: { rows: { label: string; value: number }[] }) {
-  const max = Math.max(...rows.map((row) => row.value), 1);
+
+type CourseType = 'all' | 'private' | 'small' | 'group';
+type CoachId = 'all' | 'chen' | 'lin' | 'zhou' | 'wu';
+
+type CourseStat = {
+  id: string;
+  venue: Exclude<StoreId, 'all'>;
+  coach: Exclude<CoachId, 'all'>;
+  courseType: Exclude<CourseType, 'all'>;
+  completedHours: number;
+  completedAmount: number;
+  pendingHours: number;
+  cancelledHours: number;
+  soldHours: number;
+  soldAmount: number;
+  remainingHours: number;
+  frequency: number;
+};
+
+const coachOptions = [
+  { id: 'all', name: '全部教练' },
+  { id: 'chen', name: '陈教练' },
+  { id: 'lin', name: '林教练' },
+  { id: 'zhou', name: '周教练' },
+  { id: 'wu', name: '吴教练' },
+] satisfies { id: CoachId; name: string }[];
+
+const courseTypeOptions = [
+  { id: 'all', name: '全部课程' },
+  { id: 'private', name: '私教课' },
+  { id: 'small', name: '小班课' },
+  { id: 'group', name: '团课' },
+] satisfies { id: CourseType; name: string }[];
+
+const courseTypeMeta = {
+  private: { name: '私教课', color: '#e96a7a' },
+  small: { name: '小班课', color: '#a855f7' },
+  group: { name: '团课', color: '#60a5fa' },
+} satisfies Record<Exclude<CourseType, 'all'>, { name: string; color: string }>;
+
+const courseStats: CourseStat[] = [
+  { id: 'C001', venue: 'north', coach: 'chen', courseType: 'private', completedHours: 42, completedAmount: 33600, pendingHours: 12, cancelledHours: 3, soldHours: 126, soldAmount: 100800, remainingHours: 84, frequency: 36 },
+  { id: 'C002', venue: 'north', coach: 'chen', courseType: 'small', completedHours: 28, completedAmount: 11200, pendingHours: 8, cancelledHours: 2, soldHours: 88, soldAmount: 35200, remainingHours: 60, frequency: 19 },
+  { id: 'C003', venue: 'river', coach: 'lin', courseType: 'private', completedHours: 35, completedAmount: 28000, pendingHours: 10, cancelledHours: 4, soldHours: 98, soldAmount: 78400, remainingHours: 63, frequency: 31 },
+  { id: 'C004', venue: 'river', coach: 'lin', courseType: 'group', completedHours: 24, completedAmount: 7200, pendingHours: 6, cancelledHours: 1, soldHours: 76, soldAmount: 22800, remainingHours: 52, frequency: 12 },
+  { id: 'C005', venue: 'east', coach: 'zhou', courseType: 'small', completedHours: 32, completedAmount: 12800, pendingHours: 9, cancelledHours: 3, soldHours: 92, soldAmount: 36800, remainingHours: 60, frequency: 22 },
+  { id: 'C006', venue: 'east', coach: 'zhou', courseType: 'group', completedHours: 26, completedAmount: 7800, pendingHours: 5, cancelledHours: 2, soldHours: 64, soldAmount: 19200, remainingHours: 38, frequency: 14 },
+  { id: 'C007', venue: 'north', coach: 'wu', courseType: 'private', completedHours: 30, completedAmount: 24000, pendingHours: 7, cancelledHours: 2, soldHours: 86, soldAmount: 68800, remainingHours: 56, frequency: 27 },
+  { id: 'C008', venue: 'river', coach: 'wu', courseType: 'small', completedHours: 20, completedAmount: 8000, pendingHours: 4, cancelledHours: 1, soldHours: 60, soldAmount: 24000, remainingHours: 40, frequency: 15 },
+];
+
+const monthlyCourseFrequency = [
+  { month: '01月', frequency: 86, completedHours: 132, amount: 51800 },
+  { month: '02月', frequency: 92, completedHours: 148, amount: 57200 },
+  { month: '03月', frequency: 108, completedHours: 166, amount: 64100 },
+  { month: '04月', frequency: 121, completedHours: 184, amount: 71600 },
+  { month: '05月', frequency: 118, completedHours: 178, amount: 69200 },
+  { month: '06月', frequency: 136, completedHours: 212, amount: 82600 },
+];
+
+
+type CourseProductRow = {
+  courseType: Exclude<CourseType, 'all'>;
+  name: string;
+  soldHours: number;
+  soldAmount: number;
+  completedHours: number;
+  completedAmount: number;
+  remainingHours: number;
+};
+
+const courseProductRows: CourseProductRow[] = [
+  { courseType: 'private', name: '\u79c1\u6559\u5305\u5b63', soldHours: 138, soldAmount: 118800, completedHours: 54, completedAmount: 46400, remainingHours: 84 },
+  { courseType: 'private', name: '1V1\u79c1\u6559\u5305\u6708', soldHours: 116, soldAmount: 92800, completedHours: 44, completedAmount: 35200, remainingHours: 72 },
+  { courseType: 'private', name: '1V2\u79c1\u6559\u5305\u6708', soldHours: 82, soldAmount: 57400, completedHours: 36, completedAmount: 25200, remainingHours: 46 },
+  { courseType: 'private', name: '1V3\u79c1\u6559\u5305\u6708', soldHours: 60, soldAmount: 36000, completedHours: 28, completedAmount: 16800, remainingHours: 32 },
+  { courseType: 'private', name: '3\u8282\u79c1\u6559', soldHours: 34, soldAmount: 20400, completedHours: 18, completedAmount: 10800, remainingHours: 16 },
+  { courseType: 'small', name: '\u5c0f\u73ed\u57fa\u7840\u8bfe', soldHours: 92, soldAmount: 36800, completedHours: 38, completedAmount: 15200, remainingHours: 54 },
+  { courseType: 'small', name: '\u5c0f\u73ed\u63d0\u9ad8\u8bfe', soldHours: 78, soldAmount: 34320, completedHours: 34, completedAmount: 14960, remainingHours: 44 },
+  { courseType: 'small', name: '\u9752\u5c11\u5e74\u5c0f\u73ed\u8bfe', soldHours: 72, soldAmount: 31680, completedHours: 31, completedAmount: 13640, remainingHours: 41 },
+  { courseType: 'small', name: '\u6691\u671f\u8bad\u7ec3\u8425', soldHours: 64, soldAmount: 28800, completedHours: 25, completedAmount: 11250, remainingHours: 39 },
+  { courseType: 'small', name: '\u5468\u672b\u5c0f\u73ed\u8bfe', soldHours: 48, soldAmount: 19200, completedHours: 20, completedAmount: 8000, remainingHours: 28 },
+  { courseType: 'group', name: '\u6210\u4eba\u7fbd\u6bdb\u7403\u56e2\u8bfe', soldHours: 86, soldAmount: 25800, completedHours: 34, completedAmount: 10200, remainingHours: 52 },
+  { courseType: 'group', name: '\u9752\u5c11\u5e74\u56e2\u8bfe', soldHours: 78, soldAmount: 23400, completedHours: 31, completedAmount: 9300, remainingHours: 47 },
+  { courseType: 'group', name: '\u96f6\u57fa\u7840\u56e2\u8bfe', soldHours: 66, soldAmount: 19800, completedHours: 27, completedAmount: 8100, remainingHours: 39 },
+  { courseType: 'group', name: '\u8fdb\u9636\u56e2\u8bfe', soldHours: 58, soldAmount: 18560, completedHours: 26, completedAmount: 8320, remainingHours: 32 },
+  { courseType: 'group', name: '\u4f53\u80fd\u8bad\u7ec3\u56e2\u8bfe', soldHours: 44, soldAmount: 13200, completedHours: 18, completedAmount: 5400, remainingHours: 26 },
+];
+
+function CourseTrainingReport({ period, onPeriodChange }: { period: Period; onPeriodChange: (period: Period) => void }) {
+  const [courseType, setCourseType] = useState<CourseType>('all');
+  const [venue, setVenue] = useState<StoreId>('all');
+  const activePeriod = periods.find((item) => item.id === period)!;
+  const filtered = useMemo(() => courseStats.filter((item) => (venue === 'all' || item.venue === venue) && (courseType === 'all' || item.courseType === courseType)), [venue, courseType]);
+  const totals = useMemo(() => summarizeCourseStats(filtered), [filtered]);
+  const typeRows = useMemo(() => groupCourseStats(filtered, 'courseType'), [filtered]);
+  const coachRows = useMemo(() => groupCourseStats(filtered, 'coach'), [filtered]);
 
   return (
-    <div className="flex h-56 items-end gap-2 sm:gap-3">
-      {rows.map((row) => (
-        <div key={row.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-          <div className="flex w-full flex-1 items-end rounded-md bg-slate-50 px-1.5 pt-2">
-            <div
-              className="w-full rounded-t-md bg-emerald-500"
-              style={{ height: `${Math.max((row.value / max) * 100, 8)}%` }}
-              title={`${row.label} ${money(row.value)}`}
-            />
-          </div>
-          <div className="w-full truncate text-center text-[11px] font-bold text-slate-500">{row.label}</div>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start gap-3">
+        <div>
+          <Segmented value={period} onChange={onPeriodChange} />
+          <div className="mt-1.5 text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}</div>
         </div>
+        <SelectBox icon={Building2} value={venue} onChange={(value) => setVenue(value as StoreId)} options={stores} />
+        <SelectBox icon={CreditCard} value={courseType} onChange={(value) => setCourseType(value as CourseType)} options={courseTypeOptions} />
+      </div>
+
+      <CourseAssetOverview totals={totals} range={activePeriod.range} />
+
+      <Panel title="课程表现" icon={TicketCheck} subtitle="统计区间内，比较课程售课和消课效率">
+        <CourseProductAnalysis activeType={courseType} />
+      </Panel>
+
+      <Panel title="上课分析" icon={BarChart3} subtitle={(venue === 'all' ? '全部场馆' : stores.find((item) => item.id === venue)?.name) + ' · 统计区间内'}>
+        <CourseClassAnalysisSummary totals={totals} coachRows={coachRows} />
+      </Panel>
+    </div>
+  );
+}
+
+type CourseSummary = {
+  completedHours: number;
+  completedAmount: number;
+  pendingHours: number;
+  cancelledHours: number;
+  soldHours: number;
+  soldAmount: number;
+  remainingHours: number;
+  frequency: number;
+};
+
+function summarizeCourseStats(rows: CourseStat[]): CourseSummary {
+  return rows.reduce<CourseSummary>(
+    (acc, row) => ({
+      completedHours: acc.completedHours + row.completedHours,
+      completedAmount: acc.completedAmount + row.completedAmount,
+      pendingHours: acc.pendingHours + row.pendingHours,
+      cancelledHours: acc.cancelledHours + row.cancelledHours,
+      soldHours: acc.soldHours + row.soldHours,
+      soldAmount: acc.soldAmount + row.soldAmount,
+      remainingHours: acc.remainingHours + row.remainingHours,
+      frequency: acc.frequency + row.frequency,
+    }),
+    { completedHours: 0, completedAmount: 0, pendingHours: 0, cancelledHours: 0, soldHours: 0, soldAmount: 0, remainingHours: 0, frequency: 0 },
+  );
+}
+
+function groupCourseStats<T extends 'courseType' | 'coach'>(rows: CourseStat[], key: T) {
+  const grouped = new Map<string, CourseStat[]>();
+  rows.forEach((row) => grouped.set(row[key], [...(grouped.get(row[key]) ?? []), row]));
+  return Array.from(grouped.entries()).map(([groupKey, groupRows]) => ({ key: groupKey, total: summarizeCourseStats(groupRows) }));
+}
+
+function CourseAssetOverview({ totals, range }: { totals: CourseSummary; range: string }) {
+  const endDate = range.includes('至') ? range.split('至').pop()?.trim() ?? range : range;
+  const periodName = getCoursePeriodName(range);
+  const cumulativeSoldHours = totals.soldHours + totals.remainingHours * 3;
+  const cumulativeCompletedHours = totals.completedHours + Math.round(totals.remainingHours * 2.15);
+  const unitPrice = totals.soldHours > 0 ? totals.soldAmount / totals.soldHours : 0;
+  const cumulativeSoldAmount = Math.round(cumulativeSoldHours * unitPrice);
+  const cumulativeCompletedAmount = Math.round(cumulativeCompletedHours * unitPrice);
+  const pendingAmount = Math.max(cumulativeSoldAmount - cumulativeCompletedAmount, 0);
+
+  return (
+    <section className="space-y-3 rounded-lg border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/30">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-lg font-black text-slate-900">课程经营概览</div>
+        </div>
+        <div className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600">截至日期：{endDate}</div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <CourseCoreMetric title={periodName + '售课金额'} value={money(totals.soldAmount)} helper={String(totals.soldHours) + '课时'} tone="blue" />
+        <CourseCoreMetric title={periodName + '消课金额'} value={money(totals.completedAmount)} helper={String(totals.completedHours) + '课时'} tone="emerald" />
+        <CourseCoreMetric title={'截止' + periodName + '待履约金额'} value={money(pendingAmount)} helper={String(totals.remainingHours) + '课时'} tone="amber" />
+      </div>
+
+      <div className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500">
+        口径说明：售课金额、消课金额为所选统计区间内发生额；待履约金额为截至统计区间结束日的已售未消耗课程余额。
+      </div>
+    </section>
+  );
+}
+
+function getCoursePeriodName(range: string) {
+  if (range.includes('05-24')) return '自定义';
+  if (range.includes('06-01 至 2026-06-30')) return '本月';
+  if (range.includes('06-01 至 2026-06-07')) return '本周';
+  return '本日';
+}
+
+function CourseCoreMetric({ title, value, helper, tone }: { title: string; value: string; helper: string; tone: 'blue' | 'emerald' | 'amber' }) {
+  const toneClass = tone === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : tone === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-blue-50 text-blue-700 border-blue-100';
+  return (
+    <div className={cn('rounded-lg border px-4 py-3', toneClass)}>
+      <div className="text-xs font-black opacity-80">{title}</div>
+      <div className="mt-2 text-3xl font-black tracking-normal">{value}</div>
+      <div className="mt-1 text-xs font-semibold opacity-70">{helper}</div>
+    </div>
+  );
+}
+
+function CourseSituationCard({ title, icon: Icon, highlight, items }: { title: string; icon: typeof Store; highlight: { label: string; value: string }; items: { label: string; value: string }[] }) {
+  const isSales = title === '售课情况';
+  return (
+    <section className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/30">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-black text-slate-800">
+          <span className={cn('flex h-8 w-8 items-center justify-center rounded-md', isSales ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700')}>
+            <Icon size={17} />
+          </span>
+          {title}
+        </div>
+        <span className={cn('rounded px-2 py-1 text-[11px] font-black', isSales ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700')}>{isSales ? '销售侧' : '履约侧'}</span>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-[1fr_1.35fr]">
+        <div className={cn('rounded-lg border px-4 py-3', isSales ? 'border-blue-100 bg-blue-50/60' : 'border-emerald-100 bg-emerald-50/60')}>
+          <div className="text-xs font-bold text-slate-500">{highlight.label}</div>
+          <div className={cn('mt-1 text-3xl font-black tracking-normal', isSales ? 'text-blue-700' : 'text-emerald-700')}>{highlight.value}</div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {items.map((item) => (
+            <div key={item.label} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3">
+              <div className="text-xs font-bold text-slate-500">{item.label}</div>
+              <div className="mt-1 text-lg font-black tracking-normal text-slate-900">{item.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function courseTypeDisplayName(type: Exclude<CourseType, 'all'>) {
+  if (type === 'private') return '\u79c1\u6559\u8bfe';
+  if (type === 'small') return '\u5c0f\u73ed\u8bfe';
+  return '\u56e2\u8bfe';
+}
+
+function CourseProductAnalysis({ activeType }: { activeType: CourseType }) {
+  const visibleTabs = (activeType === 'all' ? ['private', 'small', 'group'] : [activeType]) as Exclude<CourseType, 'all'>[];
+  const [tab, setTab] = useState<Exclude<CourseType, 'all'>>(visibleTabs[0]);
+  const currentTab = visibleTabs.includes(tab) ? tab : visibleTabs[0];
+  const rows = courseProductRows
+    .filter((row) => row.courseType === currentTab)
+    .sort((a, b) => b.soldAmount - a.soldAmount);
+  const totals = rows.reduce(
+    (acc, row) => ({
+      soldHours: acc.soldHours + row.soldHours,
+      soldAmount: acc.soldAmount + row.soldAmount,
+      completedHours: acc.completedHours + row.completedHours,
+      completedAmount: acc.completedAmount + row.completedAmount,
+      remainingHours: acc.remainingHours + row.remainingHours,
+    }),
+    { soldHours: 0, soldAmount: 0, completedHours: 0, completedAmount: 0, remainingHours: 0 },
+  );
+  const pendingAmount = totals.soldHours > 0 ? Math.round((totals.soldAmount / totals.soldHours) * totals.remainingHours) : 0;
+  const consumedRate = totals.soldHours > 0 ? (totals.completedHours / totals.soldHours) * 100 : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {visibleTabs.map((item) => (
+          <button
+            key={item}
+            onClick={() => setTab(item)}
+            className={cn('rounded-md px-4 py-2 text-base font-black', currentTab === item ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}
+          >
+            {courseTypeDisplayName(item)}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[980px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="text-xs font-black text-slate-500">
+              <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u8bfe\u7a0b\u540d\u79f0'}</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">{'\u552e\u8bfe\u91d1\u989d'}</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u552e\u8bfe\u8bfe\u65f6'}</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right text-emerald-700">{'\u6d88\u8bfe\u91d1\u989d'}</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u6d88\u8bfe\u8bfe\u65f6'}</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u5269\u4f59\u8bfe\u65f6'}</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u5f85\u5c65\u7ea6\u91d1\u989d'}</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u6d88\u8bfe\u7387'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => {
+              const rate = row.soldHours > 0 ? (row.completedHours / row.soldHours) * 100 : 0;
+              const rowPendingAmount = row.soldHours > 0 ? Math.round((row.soldAmount / row.soldHours) * row.remainingHours) : 0;
+              return (
+                <tr key={row.name} className="font-bold text-slate-800">
+                  <td className="border-b border-slate-100 px-3 py-3">{row.name}</td>
+                  <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.soldAmount)}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.soldHours}</td>
+                  <td className="border-b border-slate-100 bg-emerald-50/40 px-3 py-3 text-right tabular-nums text-emerald-700">{money(row.completedAmount)}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.completedHours}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.remainingHours}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(rowPendingAmount)}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{rate.toFixed(1)}%</td>
+                </tr>
+              );
+            })}
+            <tr className="bg-slate-50 font-black text-slate-900">
+              <td className="border-b border-slate-100 px-3 py-3">{'\u5408\u8ba1'}</td>
+              <td className="border-b border-slate-100 bg-blue-50/60 px-3 py-3 text-right tabular-nums text-blue-700">{money(totals.soldAmount)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{totals.soldHours}</td>
+              <td className="border-b border-slate-100 bg-emerald-50/60 px-3 py-3 text-right tabular-nums text-emerald-700">{money(totals.completedAmount)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{totals.completedHours}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{totals.remainingHours}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(pendingAmount)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{consumedRate.toFixed(1)}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CourseClassAnalysisSummary({ totals, coachRows }: { totals: CourseSummary; coachRows: { key: string; total: CourseSummary }[] }) {
+  const studentRows = buildStudentFrequencyRows(totals);
+  const totalStudents = studentRows.reduce((sum, row) => sum + row.count, 0);
+  const coachCount = coachRows.length;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-4">
+        <MiniStat label={'\u4e0a\u8bfe\u6559\u7ec3\u6570'} value={String(coachCount) + '\u4eba'} />
+        <MiniStat label={'\u4e0a\u8bfe\u5b66\u5458\u6570'} value={String(totalStudents) + '\u4eba'} />
+        <MiniStat label={'\u5df2\u6d88\u8bfe\u65f6'} value={String(totals.completedHours) + '\u8bfe\u65f6'} />
+        <MiniStat label={'\u6d88\u8bfe\u91d1\u989d'} value={money(totals.completedAmount)} />
+      </div>
+      <div className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500">
+        {'\u53e3\u5f84\u8bf4\u660e\uff1a\u5f85\u4e0a\u8bfe\u8bfe\u65f6\u6307\u5df2\u7ecf\u9884\u7ea6\u6392\u8bfe\u3001\u4f46\u5c1a\u672a\u5b9e\u9645\u5b8c\u6210\u4e0a\u8bfe\u7684\u8bfe\u65f6\uff0c\u4e0d\u7b49\u540c\u4e8e\u6240\u6709\u5269\u4f59\u672a\u6d88\u8017\u8bfe\u65f6\u3002'}
+      </div>
+      <CoachConsumptionRanking rows={coachRows} />
+    </div>
+  );
+}
+
+function buildStudentFrequencyRows(totals: CourseSummary) {
+  const totalStudents = Math.max(Math.round(totals.frequency / 3), 1);
+  const low = Math.max(Math.round(totalStudents * 0.64), 1);
+  const mid = Math.max(Math.round(totalStudents * 0.2), 0);
+  const highA = Math.max(Math.round(totalStudents * 0.1), 0);
+  const highB = Math.max(Math.round(totalStudents * 0.04), 0);
+  const used = low + mid + highA + highB;
+  const highC = Math.max(totalStudents - used, 0);
+
+  return [
+    { label: '1-3\u6b21', count: low, color: '#635bff', level: 'low' as const },
+    { label: '4-5\u6b21', count: mid, color: '#5b35d5', level: 'mid' as const },
+    { label: '6-10\u6b21', count: highA, color: '#5797f7', level: 'high' as const },
+    { label: '11-15\u6b21', count: highB, color: '#62c6e8', level: 'high' as const },
+    { label: '16\u6b21\u4ee5\u4e0a', count: highC, color: '#f5d85e', level: 'high' as const },
+  ];
+}
+
+function StudentFrequencyDonut({ rows, totalStudents }: { rows: { label: string; count: number; color: string }[]; totalStudents: number }) {
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  return (
+    <div className="grid items-center gap-4 md:grid-cols-[220px_1fr]">
+      <div className="relative mx-auto h-56 w-56">
+        <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
+          <circle cx="80" cy="80" r={radius} fill="none" stroke="#eef2f7" strokeWidth="24" />
+          {rows.map((row) => {
+            const length = totalStudents > 0 ? (row.count / totalStudents) * circumference : 0;
+            const segmentOffset = offset;
+            offset += length;
+            return <circle key={row.label} cx="80" cy="80" r={radius} fill="none" stroke={row.color} strokeWidth="24" strokeDasharray={String(length) + ' ' + String(circumference - length)} strokeDashoffset={-segmentOffset} />;
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <div className="text-3xl font-black text-slate-900">{totalStudents}\u4eba</div>
+          <div className="mt-1 text-xs font-bold text-slate-400">{'\u4e0a\u8bfe\u5b66\u5458\u6570'}</div>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {rows.map((row) => {
+          const percent = totalStudents > 0 ? ((row.count / totalStudents) * 100).toFixed(1) + '%' : '0.0%';
+          return (
+            <div key={row.label} className="flex items-center gap-3">
+              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: row.color }} />
+              <div className="min-w-0 flex-1 text-sm font-black text-slate-700">{row.label}</div>
+              <div className="text-right text-sm font-bold tabular-nums text-slate-900">{row.count}\u4eba</div>
+              <div className="w-14 text-right text-xs font-semibold text-slate-400">{percent}</div>
+            </div>
+          );
+        })}
+        <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
+          <span className="h-3 w-3 rounded-full bg-slate-300" />
+          <div className="min-w-0 flex-1 text-sm font-black text-slate-800">{'\u5408\u8ba1'}</div>
+          <div className="text-right text-sm font-black tabular-nums text-slate-900">{totalStudents}\u4eba</div>
+          <div className="w-14 text-right text-xs font-semibold text-slate-400">100%</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CoachConsumptionRanking({ rows }: { rows: { key: string; total: CourseSummary }[] }) {
+  const sorted = [...rows].sort((a, b) => b.total.completedHours - a.total.completedHours);
+  const total = sorted.reduce(
+    (acc, row) => ({
+      completedHours: acc.completedHours + row.total.completedHours,
+      completedAmount: acc.completedAmount + row.total.completedAmount,
+      studentCount: acc.studentCount + Math.max(Math.round(row.total.frequency / 3), 1),
+      pendingHours: acc.pendingHours + row.total.pendingHours,
+      cancelledHours: acc.cancelledHours + row.total.cancelledHours,
+    }),
+    { completedHours: 0, completedAmount: 0, studentCount: 0, pendingHours: 0, cancelledHours: 0 },
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[860px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u6392\u540d'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u6559\u7ec3'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u6240\u5728\u95e8\u5e97'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u5df2\u6d88\u8bfe\u65f6'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u6d88\u8bfe\u91d1\u989d'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u4e0a\u8bfe\u5b66\u5458\u6570'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u5f85\u4e0a\u8bfe\u8bfe\u65f6'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u53d6\u6d88\u8bfe\u65f6'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row, index) => {
+            const coachName = coachOptions.find((item) => item.id === row.key)?.name ?? row.key;
+            const storeNames = getCoachStoreNames(row.key);
+            const studentCount = Math.max(Math.round(row.total.frequency / 3), 1);
+            return (
+              <tr key={row.key} className="font-bold text-slate-800">
+                <td className="border-b border-slate-100 px-3 py-3">{index + 1}</td>
+                <td className="border-b border-slate-100 px-3 py-3">{coachName}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{storeNames}</td>
+                <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{row.total.completedHours}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.completedAmount)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{studentCount}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.total.pendingHours}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.total.cancelledHours}</td>
+              </tr>
+            );
+          })}
+          <tr className="bg-slate-50 font-black text-slate-900">
+            <td className="border-b border-slate-100 px-3 py-3">-</td>
+            <td className="border-b border-slate-100 px-3 py-3">{'\u5408\u8ba1'}</td>
+            <td className="border-b border-slate-100 px-3 py-3">-</td>
+            <td className="border-b border-slate-100 bg-blue-50/60 px-3 py-3 text-right tabular-nums text-blue-700">{total.completedHours}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(total.completedAmount)}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.studentCount}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.pendingHours}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.cancelledHours}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function getCoachStoreNames(coachKey: string) {
+  const storeIds = Array.from(new Set(courseStats.filter((item) => item.coach === coachKey).map((item) => item.venue)));
+  return storeIds.map((id) => stores.find((store) => store.id === id)?.name ?? id).join(' / ');
+}
+
+function CourseInsightCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-600">
+      <div className="mb-1 text-base font-black text-slate-800">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3">
+      <div className="text-xs font-bold text-slate-500">{label}</div>
+      <div className="mt-1 text-xl font-black tracking-normal text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+function ProgressMetric({ label, value, helper, tone = 'blue' }: { label: string; value: number; helper: string; tone?: 'blue' | 'amber' }) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+      <div className="flex items-center justify-between text-xs font-black text-slate-600">
+        <span>{label}</span>
+        <span>{value.toFixed(1)}%</span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+        <div className={cn('h-full rounded-full', tone === 'amber' ? 'bg-amber-500' : 'bg-blue-500')} style={{ width: String(value) + '%' }} />
+      </div>
+      <div className="mt-1 text-[11px] font-semibold text-slate-400">{helper}</div>
+    </div>
+  );
+}
+
+function VenueBookingReport({
+  period,
+  store,
+  granularity,
+  onPeriodChange,
+  onStoreChange,
+  onGranularityChange,
+  orders,
+}: {
+  period: Period;
+  store: StoreId;
+  granularity: TimeGranularity;
+  onPeriodChange: (period: Period) => void;
+  onStoreChange: (store: StoreId) => void;
+  onGranularityChange: (value: TimeGranularity) => void;
+  orders: RevenueOrder[];
+}) {
+  const venueOrders = useMemo(
+    () => orders.filter((order) => order.project === 'venue' && (order.source === 'miniProgram' || order.source === 'cashier')),
+    [orders],
+  );
+  const totals = useMemo(() => summarize(venueOrders), [venueOrders]);
+  const sourceRows = useMemo(() => groupBy(venueOrders, 'source').filter((row) => row.key === 'miniProgram' || row.key === 'cashier'), [venueOrders]);
+  const courtRows = useMemo(() => buildCourtRows(totals), [totals]);
+  const [analysisTab, setAnalysisTab] = useState<'time' | 'court'>('time');
+  const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
+  const selectedCourtTotals = useMemo(() => {
+    const activeRows = selectedCourts.length === 0 ? courtRows : courtRows.filter((row) => selectedCourts.includes(row.key));
+    return mergeVenueTotals(activeRows.map((row) => row.total));
+  }, [courtRows, selectedCourts]);
+  const timeRows = useMemo(() => buildVenueTimeRows(selectedCourtTotals, granularity), [selectedCourtTotals, granularity]);
+  const memberRows = useMemo(() => buildMemberRows(totals), [totals]);
+  const activePeriod = periods.find((item) => item.id === period)!;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start gap-3">
+        <div>
+          <Segmented value={period} onChange={onPeriodChange} />
+          <div className="mt-1.5 text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}</div>
+        </div>
+        <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
+      </div>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
+        <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
+          <BillFormulaItem label="场地预订实际营收" value={money(totals.actualRevenue)} primary />
+          <FormulaOperator value="=" />
+          <BillFormulaItem label="销售总额" value={money(totals.sales)} note="小程序、收银台场地预订订单" />
+          <FormulaOperator value="-" />
+          <BillFormulaItem label="退款金额" value={money(totals.refund)} note="场地预订退款冲减" />
+          <FormulaOperator value="-" />
+          <BillFormulaItem label="储值卡消耗" value={money(totals.storedBalance)} note="储值卡消费订场，不重复计入营收" />
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <CompactRevenueCards
+          title="销售渠道"
+          rows={sourceRows.map((row) => ({ key: sourceMeta[row.key as Source].name, total: row.total }))}
+          total={totals.actualRevenue}
+        />
+        <CompactRevenueCards title="用户类型" rows={memberRows} total={totals.actualRevenue} />
+      </section>
+
+      <section className="rounded-lg border border-slate-100 bg-white shadow-sm shadow-slate-200/30">
+        <div className="flex min-h-12 items-center px-3.5 pt-3">
+          <VenueAnalysisTabs value={analysisTab} onChange={setAnalysisTab} />
+        </div>
+        <div className="p-3.5">
+          {analysisTab === 'time' ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <CourtMultiSelect rows={courtRows} selected={selectedCourts} onChange={setSelectedCourts} />
+                <GranularitySelect value={granularity} onChange={onGranularityChange} />
+              </div>
+              <VenueLineChart rows={timeRows} />
+              <TimeFinancialTable rows={timeRows} />
+            </div>
+          ) : (
+            <CourtSalesTable rows={courtRows} />
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function GranularitySelect({ value, onChange }: { value: TimeGranularity; onChange: (value: TimeGranularity) => void }) {
+  return (
+    <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
+      时间颗粒
+      <select value={value} onChange={(event) => onChange(Number(event.target.value) as TimeGranularity)} className="bg-transparent outline-none">
+        <option value={1}>1小时</option>
+        <option value={2}>2小时</option>
+        <option value={3}>3小时</option>
+      </select>
+    </label>
+  );
+}
+
+function CourtMultiSelect({ rows, selected, onChange }: { rows: CourtSalesRow[]; selected: string[]; onChange: (value: string[]) => void }) {
+  return (
+    <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
+      场地号
+      <select
+        value={selected[0] ?? 'all'}
+        onChange={(event) => onChange(event.target.value === 'all' ? [] : [event.target.value])}
+        className="min-w-36 bg-transparent outline-none"
+      >
+        <option value="all">全部场地</option>
+        {rows.map((row) => (
+          <option key={row.key} value={row.key}>{row.key}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function VenueLineChart({ rows }: { rows: { label: string; total: ReturnType<typeof summarize> }[] }) {
+  const values = rows.map((row) => Math.max(row.total.actualRevenue, 0));
+  const max = Math.max(...values, 1);
+  const width = 980;
+  const height = 210;
+  const paddingX = 42;
+  const paddingY = 30;
+  const points = values.map((value, index) => {
+    const x = rows.length === 1 ? width / 2 : paddingX + (index * (width - paddingX * 2)) / (rows.length - 1);
+    const y = height - paddingY - (value / max) * (height - paddingY * 2);
+    return { x, y };
+  });
+  const pathData = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  const fillData = points.length ? `${pathData} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z` : '';
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[920px] rounded-lg bg-slate-50">
+        <path d={fillData} fill="rgba(37, 99, 235, 0.08)" />
+        <path d={pathData} fill="none" stroke="#2563eb" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((point, index) => (
+          <g key={rows[index].label}>
+            <circle cx={point.x} cy={point.y} r="3" fill="#2563eb" />
+            <text x={point.x} y={point.y - 8} textAnchor="middle" className="fill-slate-700 text-[8px] font-bold">
+              {money(values[index])}
+            </text>
+            <text x={point.x} y={height - 8} textAnchor="middle" className="fill-slate-500 text-[8px] font-bold">
+              {rows[index].label}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function TimeFinancialTable({ rows }: { rows: { label: string; total: VenueFinancialTotal }[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">时段</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">实际营收</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="font-bold text-slate-800">
+              <td className="border-b border-slate-100 px-3 py-3">{row.label}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.refund)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>
+              <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function VenueAnalysisTabs({ value, onChange }: { value: 'time' | 'court'; onChange: (value: 'time' | 'court') => void }) {
+  return (
+    <div className="flex rounded-md bg-slate-100 p-1">
+      {[
+        { id: 'time', label: '分时段分析' },
+        { id: 'court', label: '场地号分析' },
+      ].map((item) => (
+        <button
+          key={item.id}
+          onClick={() => onChange(item.id as 'time' | 'court')}
+          className={cn('h-10 rounded px-4 text-sm font-black', value === item.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800')}
+        >
+          {item.label}
+        </button>
       ))}
     </div>
   );
 }
 
-function buildRevenueTrend(rows: RevenueOrder[]) {
-  const labels = ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00'];
-  const total = summarize(rows).actualRevenue;
-  const weights = [0.08, 0.12, 0.1, 0.16, 0.18, 0.24, 0.12];
-  let used = 0;
+function CompactRevenueCards({
+  title,
+  rows,
+  total,
+}: {
+  title: string;
+  rows: { key: string; total: ReturnType<typeof summarize> | VenueFinancialTotal }[];
+  total: number;
+}) {
+  const colors = ['#e96a7a', '#a855f7', '#a5b4fc', '#38bdf8'];
+  const values = rows.map((row) => Math.max(row.total.actualRevenue, 0));
+  const sum = values.reduce((acc, value) => acc + value, 0);
+  let offset = 0;
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
 
-  return labels.map((label, index) => {
-    const isLast = index === labels.length - 1;
-    const value = isLast ? Math.max(total - used, 0) : Math.max(Math.round(total * weights[index]), 0);
-    used += value;
-    return { label, value };
+  return (
+    <div className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/30">
+      <div className="mb-3 text-sm font-black text-slate-800">{title}</div>
+      <div className="grid items-center gap-4 md:grid-cols-[220px_1fr]">
+        <div className="relative mx-auto h-56 w-56">
+          <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
+            <circle cx="80" cy="80" r={radius} fill="none" stroke="#eef2f7" strokeWidth="24" />
+            {rows.map((row, index) => {
+              const value = values[index];
+              const length = sum > 0 ? (value / sum) * circumference : 0;
+              const segmentOffset = offset;
+              offset += length;
+
+              return (
+                <circle
+                  key={row.key}
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  fill="none"
+                  stroke={colors[index % colors.length]}
+                  strokeWidth="24"
+                  strokeDasharray={`${length} ${circumference - length}`}
+                  strokeDashoffset={-segmentOffset}
+                />
+              );
+            })}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <div className="text-2xl font-black tracking-normal text-slate-900">{money(sum)}</div>
+            <div className="mt-1 text-xs font-bold text-slate-400">实际营收</div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {rows.map((row, index) => {
+            const value = values[index];
+            const share = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0.0%';
+            return (
+              <div key={row.key} className="flex items-start gap-3">
+                <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-black text-slate-700">{row.key}</div>
+                  <div className="mt-1 text-base font-bold tabular-nums text-slate-900">{money(value)}</div>
+                  <div className="mt-0.5 text-xs font-semibold text-slate-400">占比 {share}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CourtRevenueList({ rows }: { rows: CourtSalesRow[] }) {
+  const max = Math.max(...rows.map((row) => Math.max(row.total.actualRevenue, 0)), 1);
+
+  return (
+    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+      {rows.map((row) => {
+        const value = Math.max(row.total.actualRevenue, 0);
+        return (
+          <div key={row.key} className="rounded-lg border border-slate-100 bg-white p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', row.courtType === 'VIP场' ? 'bg-amber-500' : 'bg-blue-500')} />
+                <span className="truncate text-sm font-black text-slate-800">{row.key}</span>
+              </div>
+              <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold', row.courtType === 'VIP场' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500')}>{row.courtType}</span>
+            </div>
+            <div className="mt-2 text-xl font-black tracking-normal text-slate-900">{money(value)}</div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className={cn('h-full rounded-full', row.courtType === 'VIP场' ? 'bg-amber-500' : 'bg-blue-500')} style={{ width: `${Math.max((value / max) * 100, 8)}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VenueFinancialTable({
+  rows,
+  firstColumn,
+  showShare,
+  total = 0,
+}: {
+  rows: { key: string; total: ReturnType<typeof summarize> | VenueFinancialTotal }[];
+  firstColumn: string;
+  showShare?: boolean;
+  total?: number;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{firstColumn}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">实际营收</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
+            {showShare && <th className="border-b border-slate-100 px-3 py-3 text-right">占比</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const share = total > 0 ? ((Math.max(row.total.actualRevenue, 0) / total) * 100).toFixed(1) + '%' : '0.0%';
+            return (
+              <tr key={row.key} className="font-bold text-slate-800">
+                <td className="border-b border-slate-100 px-3 py-3">{row.key}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.refund)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>
+                <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.total.orders}</td>
+                {showShare && <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{share}</td>}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+type VenueFinancialTotal = {
+  sales: number;
+  refund: number;
+  storedBalance: number;
+  actualRevenue: number;
+  orders: number;
+};
+
+type CourtSalesRow = {
+  key: string;
+  courtType: '普通场' | 'VIP场';
+  hours: number;
+  total: VenueFinancialTotal;
+};
+
+function CourtSalesTable({ rows }: { rows: CourtSalesRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">场地号</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">场地类型</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">实际营收</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">预订时长</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key} className="font-bold text-slate-800">
+              <td className="border-b border-slate-100 px-3 py-3">{row.key}</td>
+              <td className="border-b border-slate-100 px-3 py-3">
+                <span className={cn('rounded px-2 py-1 text-xs', row.courtType === 'VIP场' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600')}>{row.courtType}</span>
+              </td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.refund)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>
+              <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.hours}小时</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.total.orders}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function buildVenueTimeRows(total: ReturnType<typeof summarize>, granularity: TimeGranularity) {
+  const weights = [0.04, 0.05, 0.06, 0.05, 0.07, 0.08, 0.07, 0.08, 0.1, 0.12, 0.12, 0.09, 0.04, 0.03];
+  const hourly = distributeVenueFinancial(total, weights, 8);
+  const rows = [];
+  for (let start = 8; start < 22; start += granularity) {
+    const end = Math.min(start + granularity, 22);
+    const bucket = hourly.filter((item) => item.hour >= start && item.hour < end);
+    rows.push({
+      label: `${padHour(start)}:00-${padHour(end)}:00`,
+      total: mergeVenueTotals(bucket.map((item) => item.total)),
+    });
+  }
+  return rows;
+}
+
+function buildCourtRows(total: ReturnType<typeof summarize>): CourtSalesRow[] {
+  const courts = [
+    ...Array.from({ length: 10 }, (_, index) => ({ key: `${index + 1}号场`, courtType: '普通场' as const, weight: 0.072 + (index % 3) * 0.006 })),
+    { key: 'VIP1号场', courtType: 'VIP场' as const, weight: 0.13 },
+    { key: 'VIP2号场', courtType: 'VIP场' as const, weight: 0.12 },
+  ];
+  const weightTotal = courts.reduce((sum, court) => sum + court.weight, 0);
+  const normalized = courts.map((court) => ({ ...court, weight: court.weight / weightTotal }));
+  const distributed = distributeVenueFinancial(total, normalized.map((court) => court.weight));
+
+  return normalized.map((court, index) => ({
+    key: court.key,
+    courtType: court.courtType,
+    hours: Math.max(Math.round(distributed[index].total.orders * (court.courtType === 'VIP场' ? 1.8 : 1.4)), 1),
+    total: distributed[index].total,
+  }));
+}
+
+function buildMemberRows(total: ReturnType<typeof summarize>) {
+  const vipSales = Math.round(total.sales * 0.56);
+  const vipRefund = Math.round(total.refund * 0.45);
+  const vipStored = total.storedBalance;
+  const vipOrders = Math.round(total.orders * 0.52);
+  const vipActual = vipSales - vipRefund - vipStored;
+  const guest = {
+    sales: total.sales - vipSales,
+    refund: total.refund - vipRefund,
+    storedBalance: 0,
+    actualRevenue: total.actualRevenue - vipActual,
+    orders: total.orders - vipOrders,
+  };
+
+  return [
+    { key: 'VIP会员（储值卡会员）', total: { sales: vipSales, refund: vipRefund, storedBalance: vipStored, actualRevenue: vipActual, orders: vipOrders } },
+    { key: '散客', total: guest },
+  ];
+}
+
+function distributeVenueFinancial(total: ReturnType<typeof summarize>, weights: number[], startHour = 0) {
+  let usedSales = 0;
+  let usedRefund = 0;
+  let usedStored = 0;
+  let usedOrders = 0;
+
+  return weights.map((weight, index) => {
+    const isLast = index === weights.length - 1;
+    const sales = isLast ? total.sales - usedSales : Math.round(total.sales * weight);
+    const refund = isLast ? total.refund - usedRefund : Math.round(total.refund * weight);
+    const storedBalance = isLast ? total.storedBalance - usedStored : Math.round(total.storedBalance * weight);
+    const orders = isLast ? total.orders - usedOrders : Math.round(total.orders * weight);
+    usedSales += sales;
+    usedRefund += refund;
+    usedStored += storedBalance;
+    usedOrders += orders;
+    return {
+      hour: startHour + index,
+      total: {
+        sales,
+        refund,
+        storedBalance,
+        actualRevenue: sales - refund - storedBalance,
+        orders,
+      },
+    };
   });
 }
 
+function mergeVenueTotals(totals: VenueFinancialTotal[]) {
+  return totals.reduce<VenueFinancialTotal>(
+    (acc, total) => ({
+      sales: acc.sales + total.sales,
+      refund: acc.refund + total.refund,
+      storedBalance: acc.storedBalance + total.storedBalance,
+      actualRevenue: acc.actualRevenue + total.actualRevenue,
+      orders: acc.orders + total.orders,
+    }),
+    { sales: 0, refund: 0, storedBalance: 0, actualRevenue: 0, orders: 0 },
+  );
+}
+
+function padHour(value: number) {
+  return String(value).padStart(2, '0');
+}
+
 function RecognitionIncomeDashboard({ store, onStoreChange }: { store: StoreId; onStoreChange: (store: StoreId) => void }) {
-  const [selectedCategory, setSelectedCategory] = useState<RecognitionCardSale['category']>('timeCard');
-  const [detailTab, setDetailTab] = useState<'recognized' | 'pending'>('recognized');
   const [recognitionMonth, setRecognitionMonth] = useState(defaultRecognitionMonth);
+  const [recognitionStoreTab, setRecognitionStoreTab] = useState<'store' | 'product'>('store');
   const cards = useMemo(() => recognitionCardSales.filter((item) => store === 'all' || item.store === store), [store]);
-  const activeCards = useMemo(() => cards.filter((item) => getRecognitionPeriodIndex(item, recognitionMonth) !== null), [cards, recognitionMonth]);
-  const pendingDetailCards = useMemo(() => cards.filter((item) => item.category !== 'goods' && getPendingRecognitionAmount(item, recognitionMonth) > 0), [cards, recognitionMonth]);
-  const metrics = useMemo(() => recognitionMetrics(cards, recognitionMonth), [cards, recognitionMonth]);
-  const currentSalesRecognized = metrics.currentSalesRecognized;
-  const historySalesRecognized = metrics.historySalesRecognized;
-  const currentRecognized = metrics.currentRecognized;
-  const monthlyPending = metrics.monthlyPending;
-  const historyPending = metrics.historyPending;
-  const monthlySalesTotal = metrics.monthlySalesTotal;
-  const pendingBalance = metrics.pending;
-  const categoryRows = useMemo(() => groupRecognitionByCategory(activeCards, cards, recognitionMonth), [activeCards, cards, recognitionMonth]);
-  const productRows = useMemo(() => groupRecognitionByProduct(activeCards, cards, selectedCategory, recognitionMonth), [activeCards, cards, selectedCategory, recognitionMonth]);
-  const storeRows = useMemo(() => groupRecognitionByStore(cards, store, recognitionMonth), [cards, store, recognitionMonth]);
+  const metrics = useMemo(() => recognitionReportMetrics(cards, recognitionMonth), [cards, recognitionMonth]);
+  const categoryRows = useMemo(() => recognitionReportCategoryRows(cards, recognitionMonth), [cards, recognitionMonth]);
+  const storeRows = useMemo(() => recognitionReportStoreRows(cards, store, recognitionMonth), [cards, store, recognitionMonth]);
+  const productRows = useMemo(() => recognitionReportProductRows(cards, recognitionMonth), [cards, recognitionMonth]);
+  const detailRows = useMemo(() => recognitionReportDetailRows(cards, recognitionMonth), [cards, recognitionMonth]);
 
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start gap-3 border-b border-slate-200 pb-4">
         <SelectBox icon={CalendarDays} value={recognitionMonth} onChange={setRecognitionMonth} options={recognitionMonthOptions} />
         <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={fitnessStores} />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-        <div className="font-semibold text-slate-500">统计月份：{recognitionMonth}，确认收入按自然月归属，以支付购买时间为确认起点。</div>
-        <div className="rounded-md bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
-          单期确认金额 = 实收金额 ÷ 确认期数；最后一期倒挤平账。
-        </div>
+      <section className="grid gap-3 lg:grid-cols-4">
+        <MetricCard title={'\u672c\u6708\u786e\u8ba4\u6536\u5165'} value={money(metrics.currentRecognized)} accent="bg-blue-600 text-white ring-1 ring-blue-500" large />
+        <MetricCard title={'\u672c\u6708\u9500\u552e\u91d1\u989d'} value={money(metrics.monthlySalesTotal)} />
+        <MetricCard title={'\u671f\u672b\u5f85\u786e\u8ba4\u6536\u5165'} value={money(metrics.pending)} />
+        <MetricCard title={'\u672c\u6708\u65b0\u552e\u5f85\u786e\u8ba4'} value={money(metrics.monthlyPending)} />
+      </section>
+
+      <div className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500">
+        {'\u53e3\u5f84\u8bf4\u660e\uff1a\u6b21/\u65f6\u95f4\u5361\u3001\u79c1\u6559\u5361\u6309\u5361\u9879\u914d\u7f6e\u7684\u786e\u8ba4\u671f\u6570\u8fdb\u884c\u6708\u5ea6\u7ed3\u8f6c\uff1b\u50a8\u503c\u5361\u9500\u552e\u4f5c\u4e3a\u9884\u6536\u6b3e\uff0c\u4f1a\u5458\u4f7f\u7528\u50a8\u503c\u5361\u6d88\u8d39\u65f6\u6309\u5df2\u6d88\u8017\u91d1\u989d\u786e\u8ba4\u6536\u5165\uff1b\u5546\u54c1\u9500\u552e\u5728\u4ed8\u6b3e\u5f53\u6708\u786e\u8ba4\u6536\u5165\u3002'}
       </div>
 
-      <section className="mt-4 grid gap-2.5 lg:grid-cols-3">
-        <MetricCard
-          title="本月确认收入"
-          value={money(currentRecognized)}
-          accent="bg-blue-600 text-white ring-1 ring-blue-500"
-          large
-          details={[
-            { label: '本月新售确认', value: money(currentSalesRecognized) },
-            { label: '往期销售确认', value: money(historySalesRecognized) },
-          ]}
-        />
-        <MetricCard
-          title="本月销售金额"
-          value={money(monthlySalesTotal)}
-          details={[
-            { label: '当月确认收入', value: money(currentSalesRecognized) },
-            { label: '后续待确认', value: money(monthlyPending) },
-          ]}
-        />
-        <MetricCard
-          title="待确认收入余额"
-          value={money(pendingBalance)}
-          details={[
-            { label: '本月新增待确认', value: money(monthlyPending) },
-            { label: '往期剩余待确认', value: money(historyPending) },
-          ]}
-        />
-      </section>
+      <Panel title={'\u6536\u5165\u7c7b\u578b\u7edf\u8ba1'} icon={CreditCard} subtitle={'\u6708\u5ea6\u7ed3\u8f6c\u53e3\u5f84'}>
+        <RecognitionReportCategoryTable rows={categoryRows} total={metrics.currentRecognized} />
+      </Panel>
 
-      <section className="mt-4">
-        <Panel title="项目统计" icon={CreditCard} subtitle="按销售分类统计">
-          <RecognitionCategorySummary rows={categoryRows} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
-          <div className="mt-4">
-            <RecognitionProductTable rows={productRows} category={selectedCategory} />
-          </div>
-        </Panel>
-      </section>
-
-      <section className="mt-4">
-        <Panel title="门店确认收入统计" icon={Building2}>
-          <RecognitionStoreTable rows={storeRows} />
-        </Panel>
-      </section>
-
-      <section className="mt-4">
-        <Panel
-          title="收入明细"
-          icon={ReceiptText}
-          action={
-            <button className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs font-bold text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-              <Download size={14} />
-              导出
+      <Panel title={'\u95e8\u5e97\u786e\u8ba4\u6536\u5165\u7edf\u8ba1'} icon={Building2}>
+        <div className="mb-3 inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+          {[
+            { key: 'store', label: '\u6309\u95e8\u5e97' },
+            { key: 'product', label: '\u9879\u76ee/\u5361\u9879\u5171\u8ba1' },
+          ].map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setRecognitionStoreTab(item.key as 'store' | 'product')}
+              className={cn(
+                'rounded px-4 py-2 text-sm font-black transition',
+                recognitionStoreTab === item.key ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900',
+              )}
+            >
+              {item.label}
             </button>
-          }
-        >
-          <div className="mb-3 flex rounded-md bg-slate-50 p-1 text-sm font-bold">
-            {[
-              { id: 'recognized', label: '本月确认收入明细' },
-              { id: 'pending', label: '待确认收入明细' },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setDetailTab(item.id as 'recognized' | 'pending')}
-                className={cn('h-9 flex-1 rounded px-3 transition', detailTab === item.id ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800')}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <RecognitionDetailTable rows={detailTab === 'recognized' ? activeCards : pendingDetailCards} month={recognitionMonth} />
-        </Panel>
-      </section>
+          ))}
+        </div>
+        {recognitionStoreTab === 'store' ? <RecognitionReportStoreTable rows={storeRows} /> : <RecognitionReportProductTable rows={productRows} />}
+      </Panel>
 
-      <section className="mt-4 rounded-lg border border-slate-100 bg-white px-3.5 py-3 shadow-sm shadow-slate-200/30">
-        <div className="mb-2 flex items-center gap-2 text-sm font-black text-slate-800">
-          <CircleDollarSign size={16} />
-          关键统计口径说明
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Definition label="本月确认收入" value="本月新售确认 + 往期销售确认" />
-          <Definition label="本月销售金额" value="本月新售确认 + 本月新售待确认" />
-          <Definition label="待确认收入余额" value="本月新售待确认 + 往期销售待确认" />
-          <Definition label="确认周期" value="按商品设置期数，自支付购买月份起按自然月确认" />
-          <Definition label="尾差处理" value="前 N-1 期均分，最后一期倒挤平账" />
-          <Definition label="商品销售" value="一次性确认为本月收入，不产生待确认收入" />
-        </div>
-      </section>
-    </>
+      <Panel title={'\u5468\u671f\u7ed3\u8f6c\u660e\u7ec6'} icon={ReceiptText}>
+        <RecognitionReportDetailTable rows={detailRows} />
+      </Panel>
+    </div>
+  );
+}
+
+function recognitionReportMetrics(items: RecognitionCardSale[], month: string) {
+  const monthlySalesTotal = items.filter((item) => item.paidAt.startsWith(month)).reduce((sum, item) => sum + item.paid, 0);
+  const currentRecognized = items.reduce((sum, item) => sum + getReportCurrentRecognizedAmount(item, month), 0);
+  const pending = items.reduce((sum, item) => sum + getReportPendingAmount(item, month), 0);
+  const monthlyPending = items.filter((item) => item.paidAt.startsWith(month)).reduce((sum, item) => sum + getReportPendingAmount(item, month), 0);
+  return { currentRecognized, monthlySalesTotal, pending, monthlyPending };
+}
+
+function recognitionReportCategoryRows(items: RecognitionCardSale[], month: string) {
+  return (Object.keys(recognitionCategoryMeta) as RecognitionCardSale['category'][]).map((category) => {
+    const rows = items.filter((item) => item.category === category);
+    const metrics = recognitionReportMetrics(rows, month);
+    return { key: category, ...metrics };
+  });
+}
+
+function recognitionReportStoreRows(items: RecognitionCardSale[], selectedStore: StoreId, month: string) {
+  return fitnessStores
+    .filter((item) => item.id !== 'all' && (selectedStore === 'all' || item.id === selectedStore))
+    .map((storeItem) => {
+      const rows = items.filter((item) => item.store === storeItem.id);
+      return { storeName: storeItem.name, ...recognitionReportMetrics(rows, month) };
+    })
+    .sort((a, b) => b.currentRecognized - a.currentRecognized);
+}
+
+function recognitionReportProductRows(items: RecognitionCardSale[], month: string) {
+  const groups = new Map<string, RecognitionCardSale[]>();
+  items.forEach((item) => {
+    const key = item.category + '::' + item.product;
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  });
+
+  return Array.from(groups.values())
+    .map((rows) => {
+      const first = rows[0];
+      return {
+        key: first.category + '::' + first.product,
+        product: first.product,
+        category: first.category,
+        periodsLabel: first.category === 'storedValue' ? '\u6d88\u8d39\u786e\u8ba4' : String(Math.max(...rows.map((item) => item.periods))),
+        ...recognitionReportMetrics(rows, month),
+      };
+    })
+    .sort((a, b) => b.currentRecognized - a.currentRecognized);
+}
+
+function recognitionReportDetailRows(items: RecognitionCardSale[], month: string) {
+  return items
+    .map((item) => ({
+      item,
+      currentRecognized: getReportCurrentRecognizedAmount(item, month),
+      recognizedToMonth: getReportRecognizedToMonth(item, month),
+      pending: getReportPendingAmount(item, month),
+      currentPeriods: getReportConfirmedPeriods(item, month),
+    }))
+    .filter((row) => row.currentRecognized > 0 || row.item.paidAt.startsWith(month) || row.pending > 0)
+    .sort((a, b) => b.currentRecognized - a.currentRecognized);
+}
+
+function getStoredValueConsumptionAmount(item: RecognitionCardSale, month: string) {
+  const diff = getMonthNumber(month) - getMonthNumber(item.paidAt.slice(0, 7));
+  if (diff < 0) return 0;
+  const rates = [0.22, 0.18, 0.14, 0.12, 0.1, 0.08];
+  return Math.min(Math.round(item.paid * (rates[diff] ?? 0.05)), item.paid);
+}
+
+function getReportCurrentRecognizedAmount(item: RecognitionCardSale, month: string) {
+  if (item.category === 'goods') return item.paidAt.startsWith(month) ? item.paid : 0;
+  if (item.category === 'storedValue') return getStoredValueConsumptionAmount(item, month);
+  return getCurrentRecognizedAmount(item, month);
+}
+
+function getReportRecognizedToMonth(item: RecognitionCardSale, month: string) {
+  if (getMonthNumber(month) < getMonthNumber(item.paidAt.slice(0, 7))) return 0;
+  if (item.category === 'goods') return item.paid;
+  if (item.category === 'storedValue') {
+    const diff = getMonthNumber(month) - getMonthNumber(item.paidAt.slice(0, 7));
+    return Math.min(
+      Array.from({ length: diff + 1 }).reduce<number>((sum, _, index) => {
+        const m = addMonths(item.paidAt.slice(0, 7), index);
+        return sum + getStoredValueConsumptionAmount(item, m);
+      }, 0),
+      item.paid,
+    );
+  }
+  return getRecognizedToMonth(item, month);
+}
+
+function getReportPendingAmount(item: RecognitionCardSale, month: string) {
+  if (item.category === 'goods') return 0;
+  return Math.max(item.paid - getReportRecognizedToMonth(item, month), 0);
+}
+
+function getReportConfirmedPeriods(item: RecognitionCardSale, month: string) {
+  if (item.category === 'goods') return item.paidAt.startsWith(month) ? 1 : 0;
+  if (item.category === 'storedValue') return getReportCurrentRecognizedAmount(item, month) > 0 ? 1 : 0;
+  return Math.min(Math.max(getMonthNumber(month) - getMonthNumber(item.paidAt.slice(0, 7)) + 1, 0), item.periods);
+}
+
+function addMonths(month: string, offset: number) {
+  const [year, monthValue] = month.split('-').map(Number);
+  const date = new Date(year, monthValue - 1 + offset, 1);
+  return String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0');
+}
+
+function RecognitionReportCategoryTable({ rows, total }: { rows: ReturnType<typeof recognitionReportCategoryRows>; total: number }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u6536\u5165\u7c7b\u578b'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u672c\u6708\u786e\u8ba4\u6536\u5165'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u5360\u6bd4'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u672c\u6708\u9500\u552e\u91d1\u989d'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u671f\u672b\u5f85\u786e\u8ba4\u6536\u5165'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key} className="font-bold text-slate-800">
+              <td className="border-b border-slate-100 px-3 py-3">{recognitionCategoryMeta[row.key].name}</td>
+              <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.currentRecognized)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total > 0 ? ((row.currentRecognized / total) * 100).toFixed(1) + '%' : '0.0%'}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.monthlySalesTotal)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.pending)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RecognitionReportStoreTable({ rows }: { rows: ReturnType<typeof recognitionReportStoreRows> }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u95e8\u5e97'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u672c\u6708\u786e\u8ba4\u6536\u5165'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u672c\u6708\u9500\u552e\u91d1\u989d'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u671f\u672b\u5f85\u786e\u8ba4\u6536\u5165'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.storeName} className="font-bold text-slate-800">
+              <td className="border-b border-slate-100 px-3 py-3">{row.storeName}</td>
+              <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.currentRecognized)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.monthlySalesTotal)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.pending)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RecognitionReportProductTable({ rows }: { rows: ReturnType<typeof recognitionReportProductRows> }) {
+  const total = rows.reduce(
+    (sum, row) => ({
+      currentRecognized: sum.currentRecognized + row.currentRecognized,
+      monthlySalesTotal: sum.monthlySalesTotal + row.monthlySalesTotal,
+      pending: sum.pending + row.pending,
+    }),
+    { currentRecognized: 0, monthlySalesTotal: 0, pending: 0 },
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[900px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u9879\u76ee/\u5361\u9879'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u6536\u5165\u7c7b\u578b'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u672c\u6708\u786e\u8ba4\u6536\u5165'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u672c\u6708\u9500\u552e\u91d1\u989d'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u671f\u672b\u5f85\u786e\u8ba4\u6536\u5165'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u786e\u8ba4\u671f\u6570'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key} className="font-bold text-slate-800">
+              <td className="border-b border-slate-100 px-3 py-3">{row.product}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{recognitionCategoryMeta[row.category].name}</td>
+              <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.currentRecognized)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.monthlySalesTotal)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.pending)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.periodsLabel}</td>
+            </tr>
+          ))}
+          <tr className="bg-slate-50 text-sm font-black text-slate-900">
+            <td className="border-t border-slate-200 px-3 py-3" colSpan={2}>{'\u5408\u8ba1'}</td>
+            <td className="border-t border-slate-200 px-3 py-3 text-right tabular-nums text-blue-700">{money(total.currentRecognized)}</td>
+            <td className="border-t border-slate-200 px-3 py-3 text-right tabular-nums">{money(total.monthlySalesTotal)}</td>
+            <td className="border-t border-slate-200 px-3 py-3 text-right tabular-nums">{money(total.pending)}</td>
+            <td className="border-t border-slate-200 px-3 py-3 text-right">-</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RecognitionReportDetailTable({ rows }: { rows: ReturnType<typeof recognitionReportDetailRows> }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u4f1a\u5458'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u95e8\u5e97'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u6536\u5165\u7c7b\u578b'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u9879\u76ee/\u5361\u9879'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u652f\u4ed8\u6708\u4efd'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u5b9e\u6536\u91d1\u989d'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u786e\u8ba4\u671f\u6570'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u672c\u6708\u786e\u8ba4\u6536\u5165'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u622a\u81f3\u672c\u6708\u5df2\u786e\u8ba4'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u671f\u672b\u5f85\u786e\u8ba4'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.item.id} className="font-bold text-slate-800">
+              <td className="border-b border-slate-100 px-3 py-3">{row.item.member}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{fitnessStores.find((item) => item.id === row.item.store)?.name}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{recognitionCategoryMeta[row.item.category].name}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{row.item.product}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{row.item.paidAt.slice(0, 7)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.item.paid)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.item.category === 'storedValue' ? '\u6d88\u8d39\u786e\u8ba4' : row.item.periods}</td>
+              <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.currentRecognized)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.recognizedToMonth)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.pending)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -1227,7 +2429,7 @@ function Panel({ title, icon: Icon, action, subtitle, children }: { title: strin
   return (
     <section className="rounded-lg border border-slate-100 bg-white shadow-sm shadow-slate-200/30">
       <div className="flex min-h-11 items-center justify-between border-b border-slate-100 px-3.5">
-        <div className="flex flex-wrap items-center gap-2 text-sm font-black">
+        <div className="flex flex-wrap items-center gap-2 text-lg font-black">
           <Icon size={17} />
           {title}
           {subtitle && <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{subtitle}</span>}
@@ -1442,15 +2644,17 @@ function DataTable({ rows, type, total, dashboard }: { rows: { key: string; tota
   );
 }
 
-function RowName({ rowKey, type }: { rowKey: string; type: Tab }) {
+function RowName({ rowKey, type, compact }: { rowKey: string; type: Tab | 'project' | 'source' | 'payment'; compact?: boolean }) {
   if (type === 'project') {
     const item = projectMeta[rowKey as Project];
     const Icon = item.icon;
     return (
       <div className="flex min-w-0 items-center gap-2">
-        <span className={cn('flex h-8 w-8 items-center justify-center rounded-md text-white', item.color)}>
-          <Icon size={16} />
-        </span>
+        {!compact && (
+          <span className={cn('flex h-8 w-8 items-center justify-center rounded-md text-white', item.color)}>
+            <Icon size={16} />
+          </span>
+        )}
         <span className="truncate">{item.name}</span>
       </div>
     );
@@ -1460,9 +2664,9 @@ function RowName({ rowKey, type }: { rowKey: string; type: Tab }) {
     const item = sourceMeta[rowKey as Source];
     return (
       <div className="flex min-w-0 items-center gap-2">
-        <span className={cn('h-2.5 w-2.5 rounded-full', item.color)} />
+        {!compact && <span className={cn('h-2.5 w-2.5 rounded-full', item.color)} />}
         <span className="truncate">{item.name}</span>
-        {item.tag && <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">{item.tag}</span>}
+        {item.tag && !compact && <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">{item.tag}</span>}
       </div>
     );
   }
@@ -1472,12 +2676,14 @@ function RowName({ rowKey, type }: { rowKey: string; type: Tab }) {
     const Icon = item.icon;
     return (
       <div className="flex min-w-0 items-start gap-2">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
-          <Icon size={16} />
-        </span>
+        {!compact && (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
+            <Icon size={16} />
+          </span>
+        )}
         <span className="min-w-0">
           <span className="block truncate">{item.name}</span>
-          <span className={cn('mt-1 inline-flex rounded px-1.5 py-0.5 text-[11px]', item.revenue ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500')}>{item.revenue ? '计入实际营收' : '不计入营收'}</span>
+          {!compact && <span className={cn('mt-1 inline-flex rounded px-1.5 py-0.5 text-[11px]', item.revenue ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500')}>{item.revenue ? '计入实际营收' : '不计入营收'}</span>}
         </span>
       </div>
     );
