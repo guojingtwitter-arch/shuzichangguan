@@ -97,15 +97,15 @@ const sourceMeta: Record<Source, { name: string; tag?: string; color: string }> 
   douyin: { name: '抖音核销', tag: '第三方团购', color: 'bg-fuchsia-500' },
 };
 
-const paymentMeta: Record<Payment, { name: string; revenue: boolean; note: string; icon: typeof Wallet }> = {
-  wechat: { name: '微信支付', revenue: true, note: '线上直收', icon: Wallet },
-  payCode: { name: '商户扫码', revenue: true, note: '收银台扫码收款', icon: ReceiptText },
-  storedBalance: { name: '储值卡支付', revenue: false, note: '余额消耗，不重复计入营收', icon: CreditCard },
-  offline: { name: '线下付款', revenue: true, note: '现金或其他线下确认', icon: Store },
-  corporate: { name: '对公转账', revenue: true, note: '当日确认收款', icon: Landmark },
-  free: { name: '无需支付', revenue: false, note: '金额为 0，保留订单数', icon: CircleDollarSign },
-  meituanGroup: { name: '美团核销实付', revenue: true, note: '第三方团购', icon: TicketCheck },
-  douyinGroup: { name: '抖音核销实付', revenue: true, note: '第三方团购', icon: TicketCheck },
+const paymentMeta: Record<Payment, { name: string; settlement: 'platform' | 'merchant' | 'thirdParty' | 'nonCash'; note: string; icon: typeof Wallet }> = {
+  wechat: { name: '微信支付（小程序收款）', settlement: 'platform', note: '可在商户后台核对入账', icon: Wallet },
+  payCode: { name: '商户扫码（收银台收款）', settlement: 'platform', note: '可在商户后台核对入账', icon: ReceiptText },
+  storedBalance: { name: '储值余额消耗', settlement: 'nonCash', note: '平台预收款余额消耗，不重复确认营收', icon: CreditCard },
+  offline: { name: '线下付款', settlement: 'merchant', note: '使用收银台登记订单，资金由商户自行核对', icon: Store },
+  corporate: { name: '对公转账', settlement: 'merchant', note: '使用收银台登记订单，资金由商户自行核对', icon: Landmark },
+  free: { name: '无需支付', settlement: 'nonCash', note: '金额为 0，保留订单数', icon: CircleDollarSign },
+  meituanGroup: { name: '美团核销', settlement: 'thirdParty', note: '需在美团平台核对结算与退款', icon: TicketCheck },
+  douyinGroup: { name: '抖音核销', settlement: 'thirdParty', note: '需在抖音平台核对结算与退款', icon: TicketCheck },
 };
 
 const orders: RevenueOrder[] = [
@@ -117,22 +117,22 @@ const orders: RevenueOrder[] = [
   { id: 'R005', store: 'river', project: 'passCard', source: 'cashier', payment: 'offline', receivable: 12800, discount: 560, paid: 12240, orders: 26, dateBucket: 'today' },
   { id: 'R006', store: 'east', project: 'goods', source: 'cashier', payment: 'payCode', receivable: 6200, discount: 180, paid: 6020, orders: 96, dateBucket: 'today' },
   { id: 'R007', store: 'east', project: 'goods', source: 'cashier', payment: 'offline', receivable: 2380, discount: 0, paid: 2380, orders: 34, dateBucket: 'today' },
-  { id: 'R008', store: 'north', project: 'venue', source: 'meituan', payment: 'meituanGroup', receivable: 9400, discount: 700, paid: 8700, refund: 240, orders: 44, dateBucket: 'today' },
-  { id: 'R009', store: 'river', project: 'venue', source: 'douyin', payment: 'douyinGroup', receivable: 7600, discount: 520, paid: 7080, orders: 39, dateBucket: 'today' },
+  { id: 'R008', store: 'north', project: 'passCard', source: 'meituan', payment: 'meituanGroup', receivable: 9400, discount: 700, paid: 8700, refund: 240, orders: 44, dateBucket: 'today' },
+  { id: 'R009', store: 'river', project: 'courseCard', source: 'douyin', payment: 'douyinGroup', receivable: 7600, discount: 520, paid: 7080, orders: 39, dateBucket: 'today' },
   { id: 'R010', store: 'east', project: 'courseCard', source: 'cashier', payment: 'corporate', receivable: 22000, discount: 2000, paid: 20000, orders: 3, dateBucket: 'today' },
   { id: 'R011', store: 'north', project: 'passCard', source: 'miniProgram', payment: 'free', receivable: 1200, discount: 1200, paid: 0, orders: 6, dateBucket: 'today' },
   { id: 'W001', store: 'north', project: 'venue', source: 'miniProgram', payment: 'wechat', receivable: 68600, discount: 4200, paid: 64400, refund: 2800, orders: 318, dateBucket: 'week' },
   { id: 'W002', store: 'river', project: 'storedCard', source: 'cashier', payment: 'payCode', receivable: 82000, discount: 5600, paid: 76400, orders: 55, dateBucket: 'week' },
   { id: 'W003', store: 'east', project: 'goods', source: 'cashier', payment: 'offline', receivable: 21400, discount: 640, paid: 20760, orders: 302, dateBucket: 'week' },
   { id: 'W004', store: 'river', project: 'courseCard', source: 'douyin', payment: 'douyinGroup', receivable: 34600, discount: 2600, paid: 32000, refund: 1200, orders: 128, dateBucket: 'week' },
-  { id: 'W005', store: 'north', project: 'venue', source: 'meituan', payment: 'meituanGroup', receivable: 29600, discount: 1800, paid: 27800, orders: 116, dateBucket: 'week' },
+  { id: 'W005', store: 'north', project: 'passCard', source: 'meituan', payment: 'meituanGroup', receivable: 29600, discount: 1800, paid: 27800, orders: 116, dateBucket: 'week' },
   { id: 'M001', store: 'north', project: 'venue', source: 'cashier', payment: 'storedBalance', receivable: 144000, discount: 6200, paid: 137800, refund: 4200, orders: 472, dateBucket: 'month' },
   { id: 'M002', store: 'river', project: 'courseCard', source: 'miniProgram', payment: 'wechat', receivable: 210000, discount: 13000, paid: 197000, orders: 160, dateBucket: 'month' },
   { id: 'M003', store: 'east', project: 'storedCard', source: 'cashier', payment: 'corporate', receivable: 188000, discount: 11200, paid: 176800, orders: 86, dateBucket: 'month' },
   { id: 'M004', store: 'east', project: 'passCard', source: 'miniProgram', payment: 'wechat', receivable: 118000, discount: 7800, paid: 110200, orders: 264, dateBucket: 'month' },
   { id: 'M005', store: 'north', project: 'goods', source: 'cashier', payment: 'payCode', receivable: 39000, discount: 1100, paid: 37900, orders: 691, dateBucket: 'month' },
-  { id: 'M006', store: 'river', project: 'venue', source: 'meituan', payment: 'meituanGroup', receivable: 76000, discount: 5200, paid: 70800, refund: 3600, orders: 298, dateBucket: 'month' },
-  { id: 'M007', store: 'east', project: 'venue', source: 'douyin', payment: 'douyinGroup', receivable: 62000, discount: 4200, paid: 57800, orders: 233, dateBucket: 'month' },
+  { id: 'M006', store: 'river', project: 'passCard', source: 'meituan', payment: 'meituanGroup', receivable: 76000, discount: 5200, paid: 70800, refund: 3600, orders: 298, dateBucket: 'month' },
+  { id: 'M007', store: 'east', project: 'courseCard', source: 'douyin', payment: 'douyinGroup', receivable: 62000, discount: 4200, paid: 57800, orders: 233, dateBucket: 'month' },
 ];
 
 const projectDetailCatalog: Record<Project, { name: string; weight: number }[]> = {
@@ -361,31 +361,31 @@ function App() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-            <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，仅统计支付成功 / 核销完成订单，不含退款、撤单、作废订单。</div>
+            <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，仅统计支付成功 / 核销完成订单，不含撤单、作废订单。</div>
             <div className="rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-              实际营收 = 总销售额 - 储值卡支付；美团/抖音计入实际营收并标注第三方团购。
+              平台营收金额 = 平台销售总额 - 平台退款金额 - 储值余额消耗；第三方团购核销额单独展示，不计入平台营收金额。
             </div>
           </div>
 
           <section className={cn('mt-4 grid gap-2.5', dashboard === 'fitness' ? 'md:grid-cols-2 xl:grid-cols-5' : 'xl:grid-cols-[1.4fr_1fr]')}>
             {dashboard === 'fitness' ? (
               <>
-                <MetricCard title="实际营收总额" value={money(totals.actualRevenue)} helper="全部渠道实际营收" />
-                <MetricCard title="小程序营收" value={money(miniProgramRevenue)} helper="小程序实际营收" />
-                <MetricCard title="收银台营收" value={money(cashierRevenue)} helper="收银台实际营收" />
+                <MetricCard title="平台营收金额" value={money(totals.actualRevenue)} helper="平台内可确认营收" />
+                <MetricCard title="小程序平台收款" value={money(miniProgramRevenue)} helper="小程序平台收款" />
+                <MetricCard title="收银台平台收款" value={money(cashierRevenue)} helper="收银台平台收款" />
                 <MetricCard title="美团核销" value={money(totals.meituan)} helper="第三方团购核销" />
                 <MetricCard title="抖音核销" value={money(totals.douyin)} helper="第三方团购核销" />
               </>
             ) : (
               <>
                 <RevenueTotalCard total={totals.actualRevenue} miniProgramRevenue={miniProgramRevenue} cashierRevenue={cashierRevenue} meituanRevenue={totals.meituan} douyinRevenue={totals.douyin} />
-                <SalesBreakdownCards sales={totals.sales} storedBalance={totals.storedBalance} actualRevenue={totals.actualRevenue} />
+                <SalesBreakdownCards sales={totals.sales} storedBalance={totals.storedBalance} actualRevenue={totals.actualRevenue} refund={totals.refund} />
               </>
             )}
           </section>
 
           <section className="mt-4">
-            <Panel title="项目统计" icon={BarChart3} subtitle="按实际营收统计">
+            <Panel title="项目统计" icon={BarChart3} subtitle="按经营发生额统计">
               <ProjectSummary rows={projectRows} orders={filteredOrders} selectedProject={selectedProject} onSelectProject={setSelectedProject} dashboard={dashboard} />
             </Panel>
           </section>
@@ -396,8 +396,8 @@ function App() {
                 <div className="flex flex-wrap gap-2">
                   {[
                     { id: 'project', name: '销售项目' },
-                    { id: 'source', name: '购买来源' },
-                    { id: 'payment', name: '付款方式' },
+                    { id: 'source', name: '销售渠道' },
+                    { id: 'payment', name: '收款方式' },
                     { id: 'store', name: '门店对比' },
                   ].map((item) => (
                     <button key={item.id} onClick={() => setTab(item.id as Tab)} className={cn('h-9 rounded-md px-3 text-sm font-bold', tab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600')}>
@@ -410,10 +410,10 @@ function App() {
                   导出
                 </button>
               </div>
-              {tab === 'project' && <DataTable rows={projectRows} type="project" total={totals.actualRevenue} dashboard={dashboard} />}
-              {tab === 'source' && <DataTable rows={sourceRows} type="source" total={totals.actualRevenue} dashboard={dashboard} />}
-              {tab === 'payment' && <DataTable rows={paymentRows} type="payment" total={totals.actualRevenue} dashboard={dashboard} />}
-              {tab === 'store' && <DataTable rows={storeRows} type="store" total={totals.actualRevenue} dashboard={dashboard} />}
+              {tab === 'project' && <DataTable rows={projectRows} type="project" total={totals.businessAmount} dashboard={dashboard} />}
+              {tab === 'source' && <DataTable rows={sourceRows} type="source" total={totals.businessAmount} dashboard={dashboard} />}
+              {tab === 'payment' && <DataTable rows={paymentRows} type="payment" total={totals.businessAmount} dashboard={dashboard} />}
+              {tab === 'store' && <DataTable rows={storeRows} type="store" total={totals.businessAmount} dashboard={dashboard} />}
             </Panel>
           </section>
 
@@ -425,8 +425,8 @@ function App() {
                   统计口径说明
                 </div>
                 <Definition label="储值卡充值营收" value={`${money(totals.storedCardRevenue)}，按实收金额`} />
-                <Definition label="美团核销实付" value={`${money(totals.meituan)}，第三方团购`} />
-                <Definition label="抖音核销实付" value={`${money(totals.douyin)}，第三方团购`} />
+                <Definition label="美团核销额" value={`${money(totals.meituan)}，第三方团购`} />
+                <Definition label="抖音核销额" value={`${money(totals.douyin)}，第三方团购`} />
                 <Definition label="商品销售" value="含直接收款" />
               </div>
             </div>
@@ -454,14 +454,15 @@ function SimpleRevenueDashboard({
   orders: RevenueOrder[];
 }) {
   const totals = useMemo(() => summarize(orders), [orders]);
-  const projectRows = useMemo(() => orderProjectRows(groupBy(orders, 'project')), [orders]);
-  const sourceRows = useMemo(() => groupBy(orders, 'source'), [orders]);
-  const paymentRows = useMemo(
-    () => groupBy(orders.filter((order) => paymentMeta[order.payment].revenue), 'payment'),
-    [orders],
-  );
+  const platformOrders = useMemo(() => orders.filter((order) => order.payment !== 'meituanGroup' && order.payment !== 'douyinGroup'), [orders]);
+  const projectRows = useMemo(() => orderProjectRows(groupBy(platformOrders, 'project')).sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [platformOrders]);
+  const sportRows = useMemo(() => groupBySport(platformOrders), [platformOrders]);
+  const sourceRows = useMemo(() => groupBy(platformOrders, 'source').sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [platformOrders]);
   const activePeriod = periods.find((item) => item.id === period)!;
-  const [analysisTab, setAnalysisTab] = useState<'summary' | 'court'>('summary');
+  const [revenueBreakdownTab, setRevenueBreakdownTab] = useState<'salesProject' | 'sportProject' | 'salesChannel'>('salesProject');
+  const revenueBreakdownRows = revenueBreakdownTab === 'salesProject' ? projectRows : revenueBreakdownTab === 'sportProject' ? sportRows : sourceRows;
+  const revenueBreakdownType = revenueBreakdownTab === 'salesProject' ? 'project' : revenueBreakdownTab === 'sportProject' ? 'sport' : 'source';
+  const revenueBreakdownTitle = revenueBreakdownTab === 'salesProject' ? '销售项目构成' : revenueBreakdownTab === 'sportProject' ? '运动项目构成' : '销售渠道构成';
 
   return (
     <div className="space-y-5">
@@ -472,26 +473,56 @@ function SimpleRevenueDashboard({
         </div>
       </div>
 
+      <SectionIntro title="平台营收概览" />
+
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
         <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
-          <BillFormulaItem label="实际营收金额" value={money(totals.actualRevenue)} primary />
+          <BillFormulaItem label="平台营收金额" value={money(totals.actualRevenue)} primary />
           <FormulaOperator value="=" />
-          <BillFormulaItem label="销售总额" value={money(totals.sales)} note="统计期内已支付订单金额" />
+          <BillFormulaItem label="平台销售总额" value={money(totals.sales)} note="数字场馆平台内已支付订单金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="退款金额" value={money(totals.refund)} note="销售冲减项" />
+          <BillFormulaItem label="平台退款金额" value={money(totals.refund)} note="平台可获取的退款冲减金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="储值卡消耗" value={money(totals.storedBalance)} note="预收余额使用，不重复确认营收" />
+          <BillFormulaItem label="储值余额消耗" value={money(totals.storedBalance)} note="平台预收余额使用，不重复确认营收" />
         </div>
       </section>
 
-      <div className="text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}，按付款时间归属收入。</div>
+      <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-800">
+        统计区间：{activePeriod.range}，平台营收金额包括小程序 + 收银台（商户扫码 + 线下收款 + 对公转账）实际营收，不包含第三方团购。
+      </div>
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        <FinancialSummaryPanel title="项目统计" rows={projectRows} type="project" total={totals.actualRevenue} />
-        <FinancialSummaryPanel title="销售渠道统计" rows={sourceRows} type="source" total={totals.actualRevenue} />
-        <FinancialSummaryPanel title="收款方式统计" rows={paymentRows} type="payment" total={Math.max(totals.actualRevenue, 1)} caption="不含储值卡支付" />
-      </section>
+      <SectionIntro title="平台营收构成" />
 
+      <div className="flex flex-wrap gap-2">
+        {[
+          { id: 'salesProject', name: '销售项目' },
+          { id: 'salesChannel', name: '销售渠道' },
+          { id: 'sportProject', name: '运动项目' },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setRevenueBreakdownTab(item.id as typeof revenueBreakdownTab)}
+            className={cn('h-9 rounded-md px-3 text-sm font-bold', revenueBreakdownTab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600')}
+          >
+            {item.name}
+          </button>
+        ))}
+      </div>
+
+      <RevenueBreakdownTable title={revenueBreakdownTitle} rows={revenueBreakdownRows} type={revenueBreakdownType} total={totals.actualRevenue} />
+
+      <SectionIntro title="收款归集" />
+      <SettlementReconciliationPanel orders={orders} />
+
+    </div>
+  );
+}
+
+function SectionIntro({ title, description }: { title: string; description?: string }) {
+  return (
+    <div>
+      <div className="text-base font-black text-slate-800">{title}</div>
+      {description && <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">{description}</div>}
     </div>
   );
 }
@@ -515,6 +546,161 @@ function FormulaOperator({ value }: { value: '=' | '-' }) {
   );
 }
 
+function SummaryMiniStat({ label, value, tone }: { label: string; value: string; tone: 'slate' | 'blue' | 'amber' | 'muted' }) {
+  return (
+    <div className={cn('min-w-0 rounded px-2 py-1.5', tone === 'blue' ? 'bg-blue-50 text-blue-700' : tone === 'amber' ? 'bg-amber-50 text-amber-700' : tone === 'muted' ? 'bg-slate-50 text-slate-400' : 'bg-slate-50 text-slate-700')}>
+      <div className="truncate text-[10px] font-bold opacity-75">{label}</div>
+      <div className="mt-0.5 truncate tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
+  const totals = summarize(orders);
+  const groupDefinitions = [
+    {
+      key: 'platform',
+      title: '平台收款',
+      helper: '可在商户后台核对资金入账',
+      tone: 'blue',
+      payments: ['payCode', 'wechat'] as Payment[],
+      details: [
+        { label: '商户扫码（收银台收款）', payment: 'payCode' as Payment },
+        { label: '微信支付（小程序收款）', payment: 'wechat' as Payment },
+      ],
+    },
+    {
+      key: 'merchant',
+      title: '商户自行收款',
+      helper: '使用收银台登记订单，资金由商户自行核对',
+      tone: 'emerald',
+      payments: ['corporate', 'offline'] as Payment[],
+      details: [
+        { label: '对公转账', payment: 'corporate' as Payment },
+        { label: '线下付款', payment: 'offline' as Payment },
+      ],
+    },
+    {
+      key: 'thirdParty',
+      title: '第三方团购',
+      helper: '团购核销金额，补贴券、退款需自行前往团购平台核对',
+      tone: 'amber',
+      payments: ['meituanGroup', 'douyinGroup'] as Payment[],
+      details: [
+        { label: '美团核销', payment: 'meituanGroup' as Payment },
+        { label: '抖音核销', payment: 'douyinGroup' as Payment },
+      ],
+    },
+  ];
+  const settlementRows = groupDefinitions.map((group) => {
+    const groupTotal = summarize(orders.filter((order) => group.payments.includes(order.payment)));
+    return { ...group, total: groupTotal, netAmount: Math.max(groupTotal.channelAmount - groupTotal.refund, 0) };
+  });
+  const platformNet = settlementRows.find((row) => row.key === 'platform')?.netAmount ?? 0;
+  const merchantNet = settlementRows.find((row) => row.key === 'merchant')?.netAmount ?? 0;
+
+  return (
+    <Panel title="收款归集与对账" icon={Wallet} action="按收款去向拆解">
+      <div className="grid gap-3 xl:grid-cols-3">
+        {settlementRows.map((group) => {
+          const toneClass = group.tone === 'blue' ? 'border-blue-100 bg-blue-50/60 text-blue-800' : group.tone === 'emerald' ? 'border-emerald-100 bg-emerald-50/60 text-emerald-800' : 'border-amber-100 bg-amber-50/70 text-amber-800';
+
+          return (
+            <div key={group.key} className={cn('rounded-lg border p-3.5', toneClass)}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-black">{group.title}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-black tracking-normal">{money(group.netAmount)}</div>
+                </div>
+              </div>
+              <div className="mt-3 space-y-1.5">
+                {group.details.map((detail) => {
+                  const detailTotal = summarize(orders.filter((order) => order.payment === detail.payment));
+                  const detailNet = Math.max(detailTotal.channelAmount - detailTotal.refund, 0);
+                  return (
+                    <div key={detail.payment} className="flex items-center justify-between gap-2 rounded-md bg-white/70 px-2.5 py-2 text-xs font-bold">
+                      <span className="min-w-0 truncate">{detail.label}</span>
+                      <span className="shrink-0 tabular-nums">{money(detailNet)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 text-[11px] font-semibold leading-5 opacity-75">{group.helper}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 px-3.5 py-3 text-sm font-black text-indigo-900">
+        平台营收金额 {money(totals.actualRevenue)} = 平台收款 {money(platformNet)} + 商户自行收款 {money(merchantNet)}
+      </div>
+    </Panel>
+  );
+}
+
+function RevenueBreakdownTable({ title, rows, type, total }: {
+  title: string;
+  rows: { key: string; total: ReturnType<typeof summarize> }[];
+  type: 'project' | 'sport' | 'source';
+  total: number;
+}) {
+  const tableTotal = summarizeTotals(rows.map((row) => row.total));
+
+  return (
+    <Panel title={title} icon={type === 'source' || type === 'sport' ? Store : BarChart3} action="字段口径与平台营收概览一致">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="text-xs font-black text-slate-500">
+              <th className="w-[220px] border-b border-slate-100 py-3 pr-3 text-left">{type === 'project' ? '销售项目' : type === 'sport' ? '运动项目' : '销售渠道'}</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">平台销售总额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">储值余额消耗</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">平台营收金额</th>
+              <th className="w-[150px] border-b border-slate-100 py-3 pl-3 text-right">占比</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const percent = total > 0 ? (row.total.actualRevenue / total) * 100 : 0;
+              return (
+                <tr key={row.key} className="font-bold text-slate-800">
+                  <td className="border-b border-slate-100 py-3 pr-3">
+                    <RowName rowKey={row.key} type={type} />
+                    {type === 'source' && row.key === 'cashier' && <div className="mt-1 text-xs font-bold text-slate-400">含商户扫码、线下付款、对公转账</div>}
+                  </td>
+                  <td className="border-b border-slate-100 bg-slate-50/70 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{money(row.total.refund)}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.storedBalance)}</td>
+                  <td className="border-b border-slate-100 bg-indigo-50/50 px-3 py-3 text-right tabular-nums text-indigo-700">{money(row.total.actualRevenue)}</td>
+                  <td className="border-b border-slate-100 py-3 pl-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="w-12 text-xs font-black tabular-nums text-slate-500">{percent.toFixed(1)}%</span>
+                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                        <span className="block h-full rounded-full bg-indigo-500" style={{ width: Math.min(Math.max(percent, 0), 100) + '%' }} />
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            <tr className="bg-slate-50 text-sm font-black text-slate-900">
+              <td className="border-b border-slate-100 py-3 pr-3">合计</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(tableTotal.sales)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{money(tableTotal.refund)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-blue-700">{money(tableTotal.storedBalance)}</td>
+              <td className="border-b border-slate-100 bg-indigo-50 px-3 py-3 text-right tabular-nums text-indigo-700">{money(tableTotal.actualRevenue)}</td>
+              <td className="border-b border-slate-100 py-3 pl-3 text-right text-xs text-slate-500">100.0%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
 function FinancialSummaryPanel({
   title,
   rows,
@@ -524,12 +710,13 @@ function FinancialSummaryPanel({
 }: {
   title: string;
   rows: { key: string; total: ReturnType<typeof summarize> }[];
-  type: 'project' | 'source' | 'payment';
+  type: 'project' | 'sport' | 'source' | 'payment';
   total: number;
-  caption?: string;
+  caption?: ReactNode;
 }) {
   const colors = ['#e96a7a', '#a855f7', '#60a5fa', '#22c55e', '#f59e0b', '#94a3b8'];
-  const values = rows.map((row) => Math.max(row.total.actualRevenue, 0));
+  const valueForRow = (row: { total: ReturnType<typeof summarize> }) => (type === 'project' || type === 'sport' || type === 'source' ? row.total.actualRevenue : row.total.channelAmount);
+  const values = rows.map((row) => Math.max(valueForRow(row), 0));
   const sum = values.reduce((acc, value) => acc + value, 0);
   const denominator = total > 0 ? total : sum;
   const radius = 50;
@@ -537,8 +724,8 @@ function FinancialSummaryPanel({
   let offset = 0;
 
   return (
-    <Panel title={title} icon={type === 'payment' ? Wallet : type === 'source' ? Store : BarChart3} action={caption}>
-      <div className="grid items-center gap-3 md:grid-cols-[180px_1fr]">
+    <Panel title={title} icon={type === 'payment' ? Wallet : type === 'source' || type === 'sport' ? Store : BarChart3} action={caption}>
+      <div className={cn('grid items-center gap-3', type === 'project' ? 'md:grid-cols-[160px_1fr]' : 'md:grid-cols-[180px_1fr]')}>
         <div className="relative mx-auto h-44 w-44">
           <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
             <circle cx="70" cy="70" r={radius} fill="none" stroke="#eef2f7" strokeWidth="20" />
@@ -565,14 +752,13 @@ function FinancialSummaryPanel({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <div className="text-xl font-black tracking-normal text-slate-900">{money(sum)}</div>
-            <div className="mt-1 text-[11px] font-bold text-slate-400">实际营收</div>
+            <div className="mt-1 text-[11px] font-bold text-slate-400">{type === 'project' || type === 'sport' || type === 'source' ? '平台营收金额' : '核对金额'}</div>
           </div>
         </div>
         <div className="space-y-2.5">
           {rows.map((row, index) => {
             const value = values[index];
             const percent = denominator > 0 ? ((value / denominator) * 100).toFixed(1) + '%' : '0.0%';
-
             return (
               <div key={row.key} className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
@@ -580,10 +766,20 @@ function FinancialSummaryPanel({
                   <div className="min-w-0 text-sm font-black text-slate-700">
                     <RowName rowKey={row.key} type={type} compact />
                   </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
-                    <span className="tabular-nums text-slate-900">{money(value)}</span>
-                    <span className="text-xs text-slate-400">占比 {percent}</span>
-                  </div>
+                  {type === 'source' && row.key === 'cashier' && <div className="mt-0.5 text-xs font-bold text-slate-400">含商户扫码、线下付款、对公转账</div>}
+                  {type === 'project' || type === 'sport' || type === 'source' ? (
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] font-bold xl:grid-cols-4">
+                      <SummaryMiniStat label="平台销售总额" value={money(row.total.sales)} tone="slate" />
+                      <SummaryMiniStat label="平台退款金额" value={money(row.total.refund)} tone={row.total.refund > 0 ? 'amber' : 'muted'} />
+                      <SummaryMiniStat label="储值余额消耗" value={money(row.total.storedBalance)} tone="blue" />
+                      <SummaryMiniStat label="平台营收金额" value={money(row.total.actualRevenue)} tone="slate" />
+                    </div>
+                  ) : (
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
+                      <span className="tabular-nums text-slate-900">{money(value)}</span>
+                      <span className="text-xs text-slate-400">占比 {percent}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -1147,13 +1343,13 @@ function VenueBookingReport({
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
         <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
-          <BillFormulaItem label="场地预订实际营收" value={money(totals.actualRevenue)} primary />
+          <BillFormulaItem label="场地预订平台营收金额" value={money(totals.actualRevenue)} primary />
           <FormulaOperator value="=" />
           <BillFormulaItem label="销售总额" value={money(totals.sales)} note="小程序、收银台场地预订订单" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="退款金额" value={money(totals.refund)} note="场地预订退款冲减" />
+          <BillFormulaItem label="平台退款金额" value={money(totals.refund)} note="场地预订退款冲减" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="储值卡消耗" value={money(totals.storedBalance)} note="储值卡消费订场，不重复计入营收" />
+          <BillFormulaItem label="储值余额消耗" value={money(totals.storedBalance)} note="储值余额支付订场，不重复计入营收" />
         </div>
       </section>
 
@@ -1264,9 +1460,9 @@ function TimeFinancialTable({ rows }: { rows: { label: string; total: VenueFinan
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">时段</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">实际营收</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值余额消耗</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
           </tr>
         </thead>
         <tbody>
@@ -1350,7 +1546,7 @@ function CompactRevenueCards({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <div className="text-2xl font-black tracking-normal text-slate-900">{money(sum)}</div>
-            <div className="mt-1 text-xs font-bold text-slate-400">实际营收</div>
+            <div className="mt-1 text-xs font-bold text-slate-400">平台营收</div>
           </div>
         </div>
         <div className="space-y-3">
@@ -1419,9 +1615,9 @@ function VenueFinancialTable({
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">{firstColumn}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">实际营收</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值余额消耗</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
             {showShare && <th className="border-b border-slate-100 px-3 py-3 text-right">占比</th>}
           </tr>
@@ -1471,9 +1667,9 @@ function CourtSalesTable({ rows }: { rows: CourtSalesRow[] }) {
             <th className="border-b border-slate-100 px-3 py-3 text-left">场地号</th>
             <th className="border-b border-slate-100 px-3 py-3 text-left">场地类型</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">实际营收</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值余额消耗</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">预订时长</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
           </tr>
@@ -2256,21 +2452,73 @@ function RecognitionDetailTable({ rows, month }: { rows: RecognitionCardSale[]; 
 function summarize(rows: RevenueOrder[]) {
   const base = rows.reduce(
     (acc, row) => {
+      const isThirdPartyGroup = row.payment === 'meituanGroup' || row.payment === 'douyinGroup';
       acc.receivable += row.receivable;
       acc.discount += row.discount;
-      acc.sales += row.paid;
       acc.orders += row.orders;
+
+      if (isThirdPartyGroup) {
+        acc.thirdPartyGroup += row.paid;
+        if (row.payment === 'meituanGroup') acc.meituan += row.paid;
+        if (row.payment === 'douyinGroup') acc.douyin += row.paid;
+        return acc;
+      }
+
+      acc.sales += row.paid;
       acc.refund += row.refund ?? 0;
       if (row.payment === 'storedBalance') acc.storedBalance += row.paid;
       if (row.project === 'storedCard') acc.storedCardRevenue += row.paid;
-      if (row.payment === 'meituanGroup') acc.meituan += row.paid;
-      if (row.payment === 'douyinGroup') acc.douyin += row.paid;
       return acc;
     },
-    { receivable: 0, discount: 0, sales: 0, refund: 0, storedBalance: 0, storedCardRevenue: 0, meituan: 0, douyin: 0, orders: 0 },
+    { receivable: 0, discount: 0, sales: 0, refund: 0, storedBalance: 0, storedCardRevenue: 0, meituan: 0, douyin: 0, thirdPartyGroup: 0, orders: 0 },
   );
 
-  return { ...base, actualRevenue: base.sales - base.refund - base.storedBalance };
+  return {
+    ...base,
+    actualRevenue: base.sales - base.refund - base.storedBalance,
+    businessAmount: base.sales + base.thirdPartyGroup,
+    channelAmount: base.sales + base.thirdPartyGroup,
+  };
+}
+
+function summarizeTotals(totals: ReturnType<typeof summarize>[]) {
+  return totals.reduce(
+    (acc, item) => ({
+      receivable: acc.receivable + item.receivable,
+      discount: acc.discount + item.discount,
+      sales: acc.sales + item.sales,
+      refund: acc.refund + item.refund,
+      storedBalance: acc.storedBalance + item.storedBalance,
+      storedCardRevenue: acc.storedCardRevenue + item.storedCardRevenue,
+      meituan: acc.meituan + item.meituan,
+      douyin: acc.douyin + item.douyin,
+      thirdPartyGroup: acc.thirdPartyGroup + item.thirdPartyGroup,
+      orders: acc.orders + item.orders,
+      actualRevenue: acc.actualRevenue + item.actualRevenue,
+      businessAmount: acc.businessAmount + item.businessAmount,
+      channelAmount: acc.channelAmount + item.channelAmount,
+    }),
+    summarize([]),
+  );
+}
+
+function groupBySport(rows: RevenueOrder[]) {
+  const grouped = new Map<string, RevenueOrder[]>();
+  rows.forEach((row) => {
+    const value = getSportProject(row);
+    grouped.set(value, [...(grouped.get(value) ?? []), row]);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([groupKey, groupRows]) => ({ key: groupKey, total: summarize(groupRows) }))
+    .sort((a, b) => b.total.actualRevenue - a.total.actualRevenue);
+}
+
+function getSportProject(order: RevenueOrder) {
+  if (order.store === 'river') return 'swimmingVenue';
+  if (order.store === 'east') return 'fitnessVenue';
+  if (order.id.endsWith('9') || order.id.endsWith('7')) return 'basketballVenue';
+  return 'badmintonVenue';
 }
 
 function groupBy<T extends keyof RevenueOrder>(rows: RevenueOrder[], key: T) {
@@ -2282,14 +2530,14 @@ function groupBy<T extends keyof RevenueOrder>(rows: RevenueOrder[], key: T) {
 
   return Array.from(grouped.entries())
     .map(([groupKey, groupRows]) => ({ key: groupKey, total: summarize(groupRows) }))
-    .sort((a, b) => b.total.actualRevenue - a.total.actualRevenue);
+    .sort((a, b) => b.total.businessAmount - a.total.businessAmount);
 }
 
 function orderProjectRows(rows: { key: string; total: ReturnType<typeof summarize> }[]) {
   return [...rows].sort((a, b) => {
     if (a.key === 'passCard') return -1;
     if (b.key === 'passCard') return 1;
-    return b.total.actualRevenue - a.total.actualRevenue;
+    return b.total.businessAmount - a.total.businessAmount;
   });
 }
 
@@ -2366,8 +2614,6 @@ function RevenueTotalCard({
   total,
   miniProgramRevenue,
   cashierRevenue,
-  meituanRevenue,
-  douyinRevenue,
 }: {
   total: number;
   miniProgramRevenue: number;
@@ -2376,18 +2622,16 @@ function RevenueTotalCard({
   douyinRevenue: number;
 }) {
   const items = [
-    { label: '小程序营收', value: miniProgramRevenue },
-    { label: '收银台营收', value: cashierRevenue },
-    { label: '美团核销', value: meituanRevenue },
-    { label: '抖音核销', value: douyinRevenue },
+    { label: '小程序平台收款', value: miniProgramRevenue },
+    { label: '收银台平台收款', value: cashierRevenue },
   ];
 
   return (
     <div className="rounded-lg border border-blue-500 bg-blue-600 p-4 text-white shadow-sm shadow-blue-200/60">
-      <div className="text-xs font-bold text-white/70">实际营收总额</div>
+      <div className="text-xs font-bold text-white/70">平台营收金额</div>
       <div className="mt-1.5 text-4xl font-black tracking-normal">{money(total)}</div>
-      <div className="mt-2 text-[11px] font-semibold text-white/65">小程序 + 收银台 + 美团核销 + 抖音核销</div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-2 text-[11px] font-semibold text-white/65">平台销售总额 - 平台退款金额 - 储值余额消耗</div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {items.map((item) => (
           <div key={item.label} className="rounded-md bg-white/10 px-2.5 py-2.5">
             <div className="text-[11px] font-bold text-white/65">{item.label}</div>
@@ -2399,27 +2643,28 @@ function RevenueTotalCard({
   );
 }
 
-function SalesBreakdownCards({ sales, storedBalance, actualRevenue }: {
+function SalesBreakdownCards({ sales, storedBalance, actualRevenue, refund }: {
   sales: number;
   storedBalance: number;
   actualRevenue: number;
+  refund: number;
 }) {
   return (
     <div className="flex h-full flex-col rounded-lg border border-slate-100 bg-white p-3.5 shadow-sm shadow-slate-200/40">
       <div className="grid flex-1 grid-cols-2 gap-2">
         <div className="rounded-lg bg-slate-50 p-4">
-          <div className="text-xs font-bold text-slate-500">总销售额</div>
+          <div className="text-xs font-bold text-slate-500">平台销售总额</div>
           <div className="mt-2 text-3xl font-black tracking-normal text-slate-800">{money(sales)}</div>
-          <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">含储值卡消费</div>
+          <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">含储值余额支付</div>
         </div>
         <div className="rounded-lg bg-slate-50 p-4">
-          <div className="text-xs font-bold text-slate-500">储值卡支付</div>
+          <div className="text-xs font-bold text-slate-500">储值余额消耗</div>
           <div className="mt-2 text-3xl font-black tracking-normal text-slate-800">{money(storedBalance)}</div>
           <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">用于扣减营收</div>
         </div>
       </div>
       <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-bold text-blue-700">
-        总销售额 {money(sales)} - 储值卡支付 {money(storedBalance)} = 实际营收 {money(actualRevenue)}
+        平台销售总额 {money(sales)} - 平台退款金额 {money(refund)} - 储值余额消耗 {money(storedBalance)} = 平台营收金额 {money(actualRevenue)}
       </div>
     </div>
   );
@@ -2495,14 +2740,23 @@ function ProjectSummary({
                   <div className="mt-0.5 text-[11px] font-bold text-slate-400">{row.total.orders} 单</div>
                 </div>
               </div>
-              <div className="mt-2 text-xl font-black text-slate-800">{money(row.total.actualRevenue)}</div>
+              <div className="mt-2 text-xl font-black text-slate-800">{money(row.total.businessAmount)}</div>
+              <div className="mt-1 text-[11px] font-bold text-slate-400">经营发生额</div>
               <div className="mt-2 grid grid-cols-2 gap-1 text-[10px] font-semibold">
+                <div className="min-w-0 rounded bg-white/70 px-1.5 py-1">
+                  <div className="truncate text-slate-400">平台销售额</div>
+                  <div className="mt-0.5 truncate text-slate-600">{money(row.total.sales)}</div>
+                </div>
+                <div className="min-w-0 rounded bg-white/70 px-1.5 py-1">
+                  <div className="truncate text-slate-400">第三方团购核销额</div>
+                  <div className="mt-0.5 truncate text-slate-600">{money(row.total.thirdPartyGroup)}</div>
+                </div>
                 {sourceTotals.map(({ source, total }) => (
                   <div key={source} className="min-w-0 rounded bg-white/70 px-1.5 py-1">
                     <div className="truncate text-slate-400">
                       {sourceMeta[source].name}
                     </div>
-                    <div className="mt-0.5 truncate text-slate-600">{money(total.actualRevenue)}</div>
+                    <div className="mt-0.5 truncate text-slate-600">{money(total.channelAmount)}</div>
                   </div>
                 ))}
               </div>
@@ -2528,7 +2782,7 @@ function ProjectDetailStats({ project, total, dashboard }: { project: Project; t
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="text-sm font-black text-slate-800">{meta.name}明细统计</div>
-          <div className="mt-1 text-xs font-bold text-slate-500">点击项目卡片切换明细，主要统计口径为实际营收。</div>
+          <div className="mt-1 text-xs font-bold text-slate-500">点击项目卡片切换明细，主要统计口径为经营发生额，平台营收与第三方团购核销分列展示。</div>
         </div>
         <div className="flex items-center gap-2">
           <button className="flex h-9 items-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-bold text-white">
@@ -2538,14 +2792,14 @@ function ProjectDetailStats({ project, total, dashboard }: { project: Project; t
         </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
-        <table className={cn('w-full border-separate border-spacing-0 text-sm', isFitness ? 'min-w-[520px]' : 'min-w-[720px]')}>
+        <table className={cn('w-full border-separate border-spacing-0 text-sm', isFitness ? 'min-w-[520px]' : 'min-w-[840px]')}>
           <thead>
             <tr className="text-xs font-black text-slate-500">
               <th className="border-b border-slate-100 px-3 py-3 text-left">明细项目</th>
-              {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">总销售额</th>}
-              {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>}
-              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">实际营收</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">优惠金额</th>
+              {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">平台销售额</th>}
+              {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-amber-700">第三方团购核销额</th>}
+              {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-slate-800">经营发生额</th>}
+              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">平台营收金额</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
             </tr>
           </thead>
@@ -2554,23 +2808,23 @@ function ProjectDetailStats({ project, total, dashboard }: { project: Project; t
               <tr key={detail.name} className="font-bold text-slate-800">
                 <td className="border-b border-slate-100 px-3 py-3">{detail.name}</td>
                 {!isFitness && <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(detail.sales)}</td>}
-                {!isFitness && <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(detail.storedBalance)}</td>}
+                {!isFitness && <td className="border-b border-slate-100 bg-amber-50/50 px-3 py-3 text-right tabular-nums text-amber-700">{money(detail.thirdPartyGroup)}</td>}
+                {!isFitness && <td className="border-b border-slate-100 bg-slate-50 px-3 py-3 text-right tabular-nums text-slate-800">{money(detail.businessAmount)}</td>}
                 <td className="border-b border-slate-100 bg-indigo-50/40 px-3 py-3 text-right tabular-nums text-indigo-700">{money(detail.actualRevenue)}</td>
-                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(detail.discount)}</td>
                 <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{detail.orders}</td>
               </tr>
             ))}
             <tr className="bg-slate-50 text-sm font-black text-slate-800">
               <td className="border-b border-slate-100 px-3 py-3">合计</td>
               {!isFitness && <td className="border-b border-slate-100 bg-blue-50/60 px-3 py-3 text-right tabular-nums text-blue-700">{money(total.sales)}</td>}
-              {!isFitness && <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(total.storedBalance)}</td>}
+              {!isFitness && <td className="border-b border-slate-100 bg-amber-50/70 px-3 py-3 text-right tabular-nums text-amber-700">{money(total.thirdPartyGroup)}</td>}
+              {!isFitness && <td className="border-b border-slate-100 bg-slate-100 px-3 py-3 text-right tabular-nums">{money(total.businessAmount)}</td>}
               <td className="border-b border-slate-100 bg-indigo-50/60 px-3 py-3 text-right tabular-nums text-indigo-700">{money(total.actualRevenue)}</td>
-              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(total.discount)}</td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.orders}</td>
             </tr>
             {details.length > 4 && (
               <tr>
-                <td colSpan={6} className="px-3 py-3 text-center">
+                <td colSpan={isFitness ? 3 : 6} className="px-3 py-3 text-center">
                   <button onClick={() => setExpanded((value) => !value)} className="inline-flex h-9 items-center gap-1 rounded-md px-3 text-sm font-bold text-blue-700 hover:bg-blue-50">
                     {expanded ? '收起' : '查看更多'}
                     <ChevronDown size={15} className={cn('transition', expanded && 'rotate-180')} />
@@ -2592,6 +2846,8 @@ function buildProjectDetails(project: Project, total: ReturnType<typeof summariz
     const usedDiscount = list.slice(0, index).reduce((sum, current) => sum + Math.round(total.discount * current.weight), 0);
     const usedSales = list.slice(0, index).reduce((sum, current) => sum + Math.round(total.sales * current.weight), 0);
     const usedStoredBalance = list.slice(0, index).reduce((sum, current) => sum + Math.round(total.storedBalance * current.weight), 0);
+    const usedThirdPartyGroup = list.slice(0, index).reduce((sum, current) => sum + Math.round(total.thirdPartyGroup * current.weight), 0);
+    const usedBusinessAmount = list.slice(0, index).reduce((sum, current) => sum + Math.round(total.businessAmount * current.weight), 0);
     const usedRevenue = list.slice(0, index).reduce((sum, current) => sum + Math.round(total.actualRevenue * current.weight), 0);
     const usedOrders = list.slice(0, index).reduce((sum, current) => sum + Math.round(total.orders * current.weight), 0);
 
@@ -2601,6 +2857,8 @@ function buildProjectDetails(project: Project, total: ReturnType<typeof summariz
       discount: isLast ? Math.max(total.discount - usedDiscount, 0) : Math.round(total.discount * item.weight),
       sales: isLast ? Math.max(total.sales - usedSales, 0) : Math.round(total.sales * item.weight),
       storedBalance: isLast ? Math.max(total.storedBalance - usedStoredBalance, 0) : Math.round(total.storedBalance * item.weight),
+      thirdPartyGroup: isLast ? Math.max(total.thirdPartyGroup - usedThirdPartyGroup, 0) : Math.round(total.thirdPartyGroup * item.weight),
+      businessAmount: isLast ? Math.max(total.businessAmount - usedBusinessAmount, 0) : Math.round(total.businessAmount * item.weight),
       actualRevenue: isLast ? Math.max(total.actualRevenue - usedRevenue, 0) : Math.round(total.actualRevenue * item.weight),
       orders: isLast ? Math.max(total.orders - usedOrders, 0) : Math.round(total.orders * item.weight),
     };
@@ -2612,14 +2870,14 @@ function DataTable({ rows, type, total, dashboard }: { rows: { key: string; tota
 
   return (
     <div className="overflow-x-auto">
-      <table className={cn('w-full border-separate border-spacing-0 text-left text-sm', isFitness ? 'min-w-[520px]' : 'min-w-[680px]')}>
+      <table className={cn('w-full border-separate border-spacing-0 text-left text-sm', isFitness ? 'min-w-[520px]' : 'min-w-[760px]')}>
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="w-[210px] border-b border-slate-100 py-3 pr-2">{tableTitle(type)}</th>
-            {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right text-blue-700">总销售额</th>}
-            {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right">储值卡支付</th>}
-            <th className="border-b border-slate-100 px-2 py-3 text-right text-indigo-700">实际营收</th>
-            <th className="border-b border-slate-100 px-2 py-3 text-right">优惠金额</th>
+            {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right text-blue-700">平台销售额</th>}
+            {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right text-amber-700">第三方团购核销额</th>}
+            <th className="border-b border-slate-100 px-2 py-3 text-right text-slate-800">经营发生额</th>
+            <th className="border-b border-slate-100 px-2 py-3 text-right text-indigo-700">平台营收金额</th>
             <th className="border-b border-slate-100 py-3 pl-2 text-right">订单数</th>
           </tr>
         </thead>
@@ -2630,9 +2888,9 @@ function DataTable({ rows, type, total, dashboard }: { rows: { key: string; tota
                 <RowName rowKey={row.key} type={type} />
               </td>
               {!isFitness && <td className="border-b border-slate-100 bg-blue-50/40 px-2 py-3 text-right tabular-nums text-blue-700">{money(row.total.sales)}</td>}
-              {!isFitness && <td className="border-b border-slate-100 px-2 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>}
+              {!isFitness && <td className="border-b border-slate-100 bg-amber-50/50 px-2 py-3 text-right tabular-nums text-amber-700">{money(row.total.thirdPartyGroup)}</td>}
+              <td className="border-b border-slate-100 bg-slate-50 px-2 py-3 text-right tabular-nums text-slate-800">{money(row.total.businessAmount)}</td>
               <td className="border-b border-slate-100 bg-indigo-50/40 px-2 py-3 text-right tabular-nums text-indigo-700">{money(row.total.actualRevenue)}</td>
-              <td className="border-b border-slate-100 px-2 py-3 text-right tabular-nums">{money(row.total.discount)}</td>
               <td className="border-b border-slate-100 py-3 pl-2 text-right tabular-nums">
                 {row.total.orders}
               </td>
@@ -2644,7 +2902,7 @@ function DataTable({ rows, type, total, dashboard }: { rows: { key: string; tota
   );
 }
 
-function RowName({ rowKey, type, compact }: { rowKey: string; type: Tab | 'project' | 'source' | 'payment'; compact?: boolean }) {
+function RowName({ rowKey, type, compact }: { rowKey: string; type: Tab | 'project' | 'sport' | 'source' | 'payment'; compact?: boolean }) {
   if (type === 'project') {
     const item = projectMeta[rowKey as Project];
     const Icon = item.icon;
@@ -2655,6 +2913,16 @@ function RowName({ rowKey, type, compact }: { rowKey: string; type: Tab | 'proje
             <Icon size={16} />
           </span>
         )}
+        <span className="truncate">{item.name}</span>
+      </div>
+    );
+  }
+
+  if (type === 'sport') {
+    const item = sportMeta[rowKey] ?? { name: rowKey, color: 'bg-slate-400' };
+    return (
+      <div className="flex min-w-0 items-center gap-2">
+        {!compact && <span className={cn('h-2.5 w-2.5 rounded-full', item.color)} />}
         <span className="truncate">{item.name}</span>
       </div>
     );
@@ -2683,7 +2951,11 @@ function RowName({ rowKey, type, compact }: { rowKey: string; type: Tab | 'proje
         )}
         <span className="min-w-0">
           <span className="block truncate">{item.name}</span>
-          {!compact && <span className={cn('mt-1 inline-flex rounded px-1.5 py-0.5 text-[11px]', item.revenue ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500')}>{item.revenue ? '计入实际营收' : '不计入营收'}</span>}
+          {!compact && (
+            <span className={cn('mt-1 inline-flex rounded px-1.5 py-0.5 text-[11px]', item.settlement === 'platform' ? 'bg-blue-50 text-blue-700' : item.settlement === 'merchant' ? 'bg-emerald-50 text-emerald-700' : item.settlement === 'thirdParty' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500')}>
+              {item.note}
+            </span>
+          )}
         </span>
       </div>
     );
@@ -2693,8 +2965,15 @@ function RowName({ rowKey, type, compact }: { rowKey: string; type: Tab | 'proje
 }
 
 function tableTitle(type: Tab) {
-  return { project: '销售项目', source: '购买来源', payment: '付款方式', store: '门店' }[type];
+  return { project: '销售项目', source: '销售渠道', payment: '收款方式', store: '门店' }[type];
 }
+
+const sportMeta: Record<string, { name: string; color: string }> = {
+  badmintonVenue: { name: '羽毛球馆', color: 'bg-cyan-500' },
+  fitnessVenue: { name: '健身馆', color: 'bg-emerald-500' },
+  basketballVenue: { name: '篮球馆', color: 'bg-orange-500' },
+  swimmingVenue: { name: '游泳馆', color: 'bg-blue-500' },
+};
 
 function money(value: number) {
   return `¥${Math.round(value).toLocaleString('zh-CN')}`;
