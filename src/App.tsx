@@ -141,7 +141,8 @@ const orders: RevenueOrder[] = [
   { id: 'W003', store: 'east', project: 'goods', source: 'cashier', payment: 'offline', receivable: 21400, discount: 640, paid: 20760, orders: 302, dateBucket: 'week' },
   { id: 'W004', store: 'river', project: 'courseCard', source: 'douyin', payment: 'douyinGroup', receivable: 34600, discount: 2600, paid: 32000, refund: 1200, orders: 128, dateBucket: 'week' },
   { id: 'W005', store: 'north', project: 'passCard', source: 'meituan', payment: 'meituanGroup', receivable: 29600, discount: 1800, paid: 27800, orders: 116, dateBucket: 'week' },
-  { id: 'M001', store: 'north', project: 'venue', source: 'cashier', payment: 'storedBalance', receivable: 144000, discount: 6200, paid: 137800, refund: 4200, orders: 472, dateBucket: 'month' },
+  { id: 'M001', store: 'north', project: 'venue', source: 'cashier', payment: 'storedBalance', receivable: 36000, discount: 1200, paid: 34800, refund: 1200, orders: 118, dateBucket: 'month' },
+  { id: 'M008', store: 'north', project: 'venue', source: 'miniProgram', payment: 'wechat', receivable: 118000, discount: 7200, paid: 110800, refund: 3000, orders: 354, dateBucket: 'month' },
   { id: 'M002', store: 'river', project: 'courseCard', source: 'miniProgram', payment: 'wechat', receivable: 210000, discount: 13000, paid: 197000, orders: 160, dateBucket: 'month' },
   { id: 'M003', store: 'east', project: 'storedCard', source: 'cashier', payment: 'corporate', receivable: 188000, discount: 11200, paid: 176800, orders: 86, dateBucket: 'month' },
   { id: 'M004', store: 'east', project: 'passCard', source: 'miniProgram', payment: 'wechat', receivable: 118000, discount: 7800, paid: 110200, orders: 264, dateBucket: 'month' },
@@ -856,6 +857,14 @@ function SimpleRevenueDashboard({
       <SectionIntro title="收款归集" />
       <SettlementReconciliationPanel orders={orders} />
 
+      <KeyMetricNotes
+        items={[
+          '平台营收金额 = 平台销售总额 - 平台退款金额 - 储值余额消耗。',
+          '第三方团购不计入平台营收金额，仅作为核销参考。',
+          '收款归集按资金入账去向展示，平台收款未扣除支付手续费。',
+        ]}
+      />
+
     </div>
   );
 }
@@ -866,6 +875,25 @@ function SectionIntro({ title, description }: { title: string; description?: str
       <div className="text-base font-black text-slate-800">{title}</div>
       {description && <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">{description}</div>}
     </div>
+  );
+}
+
+function KeyMetricNotes({ items }: { items: string[] }) {
+  return (
+    <section className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/30">
+      <div className="mb-2 flex items-center gap-2 text-sm font-black text-slate-800">
+        <ReceiptText size={16} />
+        关键口径说明
+      </div>
+      <ul className="grid gap-1.5 text-xs font-semibold leading-5 text-slate-500 md:grid-cols-2">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2">
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -1248,6 +1276,14 @@ function CourseTrainingReport({ period, customRange, onPeriodChange, onCustomRan
       <Panel title="上课分析" icon={BarChart3} subtitle={(venue === 'all' ? '全部场馆' : stores.find((item) => item.id === venue)?.name) + ' · 统计区间内'}>
         <CourseClassAnalysisSummary totals={totals} coachRows={coachRows} />
       </Panel>
+
+      <KeyMetricNotes
+        items={[
+          '售课金额统计所选区间内课程卡、课包销售发生额。',
+          '消课金额按已完成上课课时确认，已取消课时不计入消课金额。',
+          '待上课课时指已排课但尚未完成的课时，不等同于全部未消耗课时。',
+        ]}
+      />
     </div>
   );
 }
@@ -1696,7 +1732,7 @@ function VenueBookingReport({
           <BillFormulaItem label="销售总额" value={money(selectedSubVenueTotal.sales)} note="小程序、收银台场地预订订单" />
           <FormulaOperator value="-" />
           <BillFormulaItem label="平台退款金额" value={money(selectedSubVenueTotal.refund)} note="场地预订退款冲减" />
-          <BillFormulaItem label="储值余额消耗" value={money(selectedSubVenueTotal.storedBalance)} note="储值余额支付订场，已包含在销售总额内" />
+          <BillFormulaItem label="储值余额消耗" value={money(selectedSubVenueTotal.storedBalance)} note="平台预收余额使用，不重复确认当期营收" />
         </div>
       </section>
 
@@ -1734,6 +1770,15 @@ function VenueBookingReport({
           )}
         </div>
       </section>
+
+      <KeyMetricNotes
+        items={[
+          '场地预订营收金额 = 场地预订销售总额 - 退款金额 - 储值余额消耗。',
+          '储值余额消耗属于平台预收款使用，不重复确认为当期营收。',
+          '场景分布按场馆和订场场景展示，空值表示当前无该场景发生额。',
+          '分时段分析、场地号分析用于查看订场高峰和场地利用情况。',
+        ]}
+      />
     </div>
   );
 }
@@ -2289,7 +2334,7 @@ function summarizeVenueFinancial(rows: RevenueOrder[]): VenueFinancialTotal {
     sales: total.sales,
     refund: Math.min(total.refund, total.sales),
     storedBalance: total.storedBalance,
-    actualRevenue: Math.max(total.sales - total.refund, 0),
+    actualRevenue: total.actualRevenue,
     orders: total.orders,
   };
 }
@@ -2397,6 +2442,15 @@ function RecognitionIncomeDashboard({
       <Panel title={'\u5468\u671f\u7ed3\u8f6c\u660e\u7ec6'} icon={ReceiptText}>
         <RecognitionReportDetailTable rows={detailRows} />
       </Panel>
+
+      <KeyMetricNotes
+        items={[
+          '确认收入按卡项配置的确认期数进行结转。',
+          '储值卡销售作为预收款，会员实际消费时确认收入。',
+          '商品销售在付款当期确认收入。',
+          '筛选区间用于查看对应统计范围，确认收入仍遵循结转口径。',
+        ]}
+      />
     </div>
   );
 }
