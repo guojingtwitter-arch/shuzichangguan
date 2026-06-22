@@ -40,6 +40,9 @@ type Project = 'venue' | 'storedCard' | 'courseCard' | 'passCard' | 'goods';
 type Source = 'miniProgram' | 'cashier' | 'meituan' | 'douyin';
 type Payment = 'wechat' | 'payCode' | 'storedBalance' | 'offline' | 'corporate' | 'free' | 'meituanGroup' | 'douyinGroup';
 type TimeGranularity = 1 | 2 | 3;
+type MobileReport = 'home' | 'revenue' | 'venue' | 'course' | 'recognition';
+type CustomDateRange = { start: string; end: string };
+type VenueSubVenue = 'all' | 'badminton' | 'basketball' | 'pickleball';
 
 type RevenueOrder = {
   id: string;
@@ -74,6 +77,18 @@ const fitnessStores = [
   { id: 'xianglu', name: '加减健身（湖里翔鹭店）' },
   { id: 'wanda', name: '加减健身（湖里万达店）' },
 ] satisfies { id: StoreId; name: string }[];
+
+const venueSubVenues = [
+  { id: 'all', name: '全部子场馆', weight: 1 },
+  { id: 'badminton', name: '羽毛球馆', weight: 0.54 },
+  { id: 'basketball', name: '篮球馆', weight: 0.28 },
+  { id: 'pickleball', name: '匹克球馆', weight: 0.18 },
+] satisfies { id: VenueSubVenue; name: string; weight: number }[];
+
+const venueAnalysisVenueOptions = [
+  { id: 'badminton', name: '羽毛球馆' },
+  { id: 'basketball', name: '篮球馆' },
+] satisfies { id: VenueSubVenue; name: string }[];
 
 const periods = [
   { id: 'today', name: '本日', range: '2026-06-03' },
@@ -264,13 +279,333 @@ const recognitionMonthOptions = [
   { id: '2026-08', name: '2026年8月' },
 ];
 
+
+function MobileManagerPreview() {
+  const [report, setReport] = useState<MobileReport>('home');
+  const [period, setPeriod] = useState<Period>('today');
+  const activePeriod = periods.find((item) => item.id === period)!;
+  const filtered = useMemo(() => {
+    const bucket = period === 'custom' ? ['today', 'week'] : [period];
+    return orders.filter((order) => bucket.includes(order.dateBucket));
+  }, [period]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-cyan-50 via-slate-50 to-slate-100 text-slate-900">
+      <div className="mx-auto min-h-screen max-w-[430px] px-4 pb-8 pt-5">
+        {report === 'home' ? (
+          <MobileHome onOpen={setReport} />
+        ) : (
+          <MobileReportPage report={report} period={period} activePeriod={activePeriod} orders={filtered} onPeriodChange={setPeriod} onBack={() => setReport('home')} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MobileHome({ onOpen }: { onOpen: (report: MobileReport) => void }) {
+  const reportItems = [
+    { id: 'revenue', label: '营收报表', icon: CircleDollarSign, color: 'from-blue-400 to-cyan-400' },
+    { id: 'venue', label: '场地报表', icon: CalendarDays, color: 'from-emerald-400 to-teal-400' },
+    { id: 'course', label: '课程报表', icon: TicketCheck, color: 'from-violet-400 to-indigo-400' },
+    { id: 'recognition', label: '确认收入', icon: ReceiptText, color: 'from-amber-400 to-orange-400' },
+  ] satisfies { id: MobileReport; label: string; icon: typeof Store; color: string }[];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
+            <Building2 size={24} className="text-cyan-600" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1 text-xl font-black">运动场馆 <ChevronDown size={17} /></div>
+            <div className="text-sm font-bold text-slate-500">卡猫贸易</div>
+          </div>
+        </div>
+        <div className="rounded-full bg-white px-4 py-2 text-lg font-black shadow-sm">···</div>
+      </div>
+
+      <MobileSection title="我的常用" action="如何添加 ？" compact />
+
+      <MobileSection title="统计报表">
+        {reportItems.map((item) => (
+          <div key={item.id}>
+            <MobileIcon label={item.label} color={item.color} icon={item.icon} onClick={() => onOpen(item.id)} />
+          </div>
+        ))}
+      </MobileSection>
+
+      <MobileSection title="场馆管理">
+        <MobileIcon label="场馆管理" color="from-teal-400 to-cyan-400" icon={Building2} />
+        <MobileIcon label="灯控管理" color="from-yellow-400 to-orange-300" icon={RefreshCw} />
+      </MobileSection>
+
+      <MobileSection title="课程管理">
+        <MobileIcon label="上课日程" color="from-blue-400 to-sky-300" icon={CalendarDays} />
+        <MobileIcon label="创建排课" color="from-teal-400 to-emerald-300" icon={TicketCheck} />
+      </MobileSection>
+
+      <MobileSection title="卡券核销">
+        <MobileIcon label="扫码核销" color="from-green-400 to-lime-400" icon={ReceiptText} />
+        <MobileIcon label="核销记录" color="from-cyan-400 to-sky-400" icon={ArrowDownToLine} />
+      </MobileSection>
+
+
+    </div>
+  );
+}
+
+function MobileSection({ title, action, compact, children }: { title: string; action?: string; compact?: boolean; children?: ReactNode }) {
+  return (
+    <section className={cn('rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/60', compact ? 'flex min-h-14 items-center justify-between' : 'min-h-36')}>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-black">{title}</h2>
+        {action && <span className="text-sm font-bold text-slate-400">{action}</span>}
+      </div>
+      {children && <div className="mt-5 grid grid-cols-4 gap-x-3 gap-y-5">{children}</div>}
+    </section>
+  );
+}
+
+function MobileIcon({ label, color, icon: Icon, onClick }: { label: string; color: string; icon: typeof Store; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} className="flex min-w-0 flex-col items-center gap-2 text-center">
+      <span className={cn('flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-sm', color)}>
+        <Icon size={28} />
+      </span>
+      <span className="text-xs font-black leading-4 text-slate-600">{label}</span>
+    </button>
+  );
+}
+
+function MobileReportPage({
+  report,
+  period,
+  activePeriod,
+  orders,
+  onPeriodChange,
+  onBack,
+}: {
+  report: Exclude<MobileReport, 'home'>;
+  period: Period;
+  activePeriod: { id: Period; name: string; range: string };
+  orders: RevenueOrder[];
+  onPeriodChange: (period: Period) => void;
+  onBack: () => void;
+}) {
+  const titleMap = { revenue: '营收报表', venue: '场地预订报表', course: '课程培训报表', recognition: '确认收入报表' } satisfies Record<Exclude<MobileReport, 'home'>, string>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between pt-2">
+        <button onClick={onBack} className="rounded-full bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm">返回</button>
+        <div className="text-base font-black">{titleMap[report]}</div>
+        <div className="w-12" />
+      </div>
+      <div className="rounded-2xl bg-white p-3 shadow-sm">
+        <div className="grid grid-cols-3 gap-2">
+          {periods.slice(0, 3).map((item) => (
+            <button key={item.id} onClick={() => onPeriodChange(item.id)} className={cn('h-9 rounded-xl text-sm font-black', period === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600')}>
+              {item.name}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 text-center text-xs font-bold text-slate-400">统计区间：{activePeriod.range}</div>
+      </div>
+      {report === 'revenue' && <MobileRevenueReport orders={orders} />}
+      {report === 'venue' && <MobileVenueReport orders={orders} />}
+      {report === 'course' && <MobileCourseReport />}
+      {report === 'recognition' && <MobileRecognitionReport />}
+      <div className="rounded-2xl bg-white px-4 py-3 text-center text-xs font-bold text-slate-400 shadow-sm">更多明细请前往电脑后台查看</div>
+    </div>
+  );
+}
+
+function MobileRevenueReport({ orders }: { orders: RevenueOrder[] }) {
+  const totals = summarize(orders);
+  const platformOrders = orders.filter((order) => order.payment !== 'meituanGroup' && order.payment !== 'douyinGroup');
+  const projectRows = orderProjectRows(groupBy(platformOrders, 'project')).slice(0, 4);
+  const sourceRows = groupBy(platformOrders, 'source');
+
+  return (
+    <div className="space-y-3">
+      <MobileMetricGrid>
+        <MobileMetric title="平台营收金额" value={money(totals.actualRevenue)} tone="blue" />
+        <MobileMetric title="平台销售总额" value={money(totals.sales)} />
+        <MobileMetric title="平台退款金额" value={money(totals.refund)} />
+        <MobileMetric title="储值余额消耗" value={money(totals.storedBalance)} />
+      </MobileMetricGrid>
+      <MobileListCard title="销售项目">
+        {projectRows.map((row, index) => (
+          <div key={row.key}>
+            <MobileAmountRow rank={index + 1} label={projectMeta[row.key as Project].name} value={row.total.actualRevenue} total={totals.actualRevenue} />
+          </div>
+        ))}
+      </MobileListCard>
+      <MobileListCard title="销售渠道">
+        {sourceRows.map((row, index) => (
+          <div key={row.key}>
+            <MobileAmountRow rank={index + 1} label={sourceMeta[row.key as Source].name} value={row.total.actualRevenue} total={totals.actualRevenue} note={row.key === 'cashier' ? '含商户扫码、线下付款、对公转账' : undefined} />
+          </div>
+        ))}
+      </MobileListCard>
+    </div>
+  );
+}
+
+function MobileVenueReport({ orders }: { orders: RevenueOrder[] }) {
+  const venueOrders = orders.filter((order) => order.project === 'venue' && order.payment !== 'meituanGroup' && order.payment !== 'douyinGroup');
+  const totals = summarize(venueOrders);
+  const storeRows = groupBy(venueOrders, 'store').slice(0, 4);
+  const hours = Math.round(totals.orders * 1.4);
+
+  return (
+    <div className="space-y-3">
+      <MobileMetricGrid>
+        <MobileMetric title="预订金额" value={money(totals.actualRevenue)} tone="emerald" />
+        <MobileMetric title="预订订单数" value={String(totals.orders) + ' 单'} />
+        <MobileMetric title="场地使用时长" value={String(hours) + ' 小时'} />
+        <MobileMetric title="预估使用率" value={String(Math.min(96, Math.round(totals.orders / 2.8))) + '%'} />
+      </MobileMetricGrid>
+      <MobileListCard title="热门场馆">
+        {storeRows.map((row, index) => (
+          <div key={row.key}>
+            <MobileAmountRow rank={index + 1} label={stores.find((item) => item.id === row.key)?.name ?? row.key} value={row.total.actualRevenue} total={totals.actualRevenue} />
+          </div>
+        ))}
+      </MobileListCard>
+      <MobileListCard title="热门时段">
+        {['18:00-20:00', '20:00-22:00', '16:00-18:00'].map((label, index) => (
+          <div key={label}>
+            <MobileAmountRow rank={index + 1} label={label} value={Math.round(totals.actualRevenue * [0.36, 0.28, 0.18][index])} total={totals.actualRevenue} />
+          </div>
+        ))}
+      </MobileListCard>
+    </div>
+  );
+}
+
+function MobileCourseReport() {
+  const totals = summarizeCourseStats(courseStats);
+  const courseRows = groupCourseStats(courseStats, 'courseType').slice(0, 3);
+
+  return (
+    <div className="space-y-3">
+      <MobileMetricGrid>
+        <MobileMetric title="售课金额" value={money(totals.soldAmount)} tone="violet" />
+        <MobileMetric title="消课金额" value={money(totals.completedAmount)} />
+        <MobileMetric title="待履约金额" value={money(totals.soldHours > 0 ? Math.round((totals.soldAmount / totals.soldHours) * totals.remainingHours) : 0)} />
+        <MobileMetric title="消课课时" value={String(totals.completedHours) + ' 课时'} />
+      </MobileMetricGrid>
+      <MobileListCard title="课程类型">
+        {courseRows.map((row, index) => (
+          <div key={row.key}>
+            <MobileAmountRow rank={index + 1} label={courseTypeMeta[row.key as Exclude<CourseType, 'all'>].name} value={row.total.soldAmount} total={totals.soldAmount} />
+          </div>
+        ))}
+      </MobileListCard>
+      <MobileListCard title="教练消课排行">
+        {groupCourseStats(courseStats, 'coach').slice(0, 3).map((row, index) => (
+          <div key={row.key}>
+            <MobileAmountRow rank={index + 1} label={coachOptions.find((item) => item.id === row.key)?.name ?? row.key} value={row.total.completedAmount} total={totals.completedAmount} />
+          </div>
+        ))}
+      </MobileListCard>
+    </div>
+  );
+}
+
+function MobileRecognitionReport() {
+  const month = defaultRecognitionMonth;
+  const rows = recognitionCardSales.filter((row) => row.paidAt.startsWith(month));
+  const sales = rows.reduce((sum, row) => sum + row.paid, 0);
+  const recognized = Math.round(sales * 0.62);
+  const pending = Math.max(sales - recognized, 0);
+  const categoryRows = (Object.keys(recognitionCategoryMeta) as RecognitionCardSale['category'][]).map((category) => {
+    const total = rows.filter((row) => row.category === category).reduce((sum, row) => sum + row.paid, 0);
+    return { key: category, value: total };
+  }).filter((row) => row.value > 0);
+
+  return (
+    <div className="space-y-3">
+      <MobileMetricGrid>
+        <MobileMetric title="本月确认收入" value={money(recognized)} tone="amber" />
+        <MobileMetric title="本月销售金额" value={money(sales)} />
+        <MobileMetric title="待确认收入余额" value={money(pending)} />
+        <MobileMetric title="待确认期数" value={String(rows.reduce((sum, row) => sum + Math.max(row.periods - 1, 0), 0)) + ' 期'} />
+      </MobileMetricGrid>
+      <MobileListCard title="确认收入分类">
+        {categoryRows.map((row, index) => (
+          <div key={row.key}>
+            <MobileAmountRow rank={index + 1} label={recognitionCategoryMeta[row.key].name} value={row.value} total={sales} />
+          </div>
+        ))}
+      </MobileListCard>
+      <MobileListCard title="确认来源">
+        <MobileAmountRow rank={1} label="本月新售确认" value={Math.round(recognized * 0.68)} total={recognized} />
+        <MobileAmountRow rank={2} label="往期确认" value={Math.round(recognized * 0.32)} total={recognized} />
+      </MobileListCard>
+    </div>
+  );
+}
+
+function MobileMetricGrid({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-2 gap-3">{children}</div>;
+}
+
+function MobileMetric({ title, value, tone }: { title: string; value: string; tone?: 'blue' | 'emerald' | 'violet' | 'amber' }) {
+  const toneClass = tone === 'emerald' ? 'bg-emerald-600 text-white' : tone === 'violet' ? 'bg-violet-600 text-white' : tone === 'amber' ? 'bg-amber-500 text-white' : tone === 'blue' ? 'bg-blue-600 text-white' : 'bg-white text-slate-900';
+  return (
+    <div className={cn('min-h-24 rounded-2xl p-4 shadow-sm', toneClass)}>
+      <div className={cn('text-xs font-bold', tone ? 'text-white/75' : 'text-slate-500')}>{title}</div>
+      <div className="mt-3 text-xl font-black tracking-normal">{value}</div>
+    </div>
+  );
+}
+
+function MobileListCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl bg-white p-4 shadow-sm">
+      <div className="text-base font-black">{title}</div>
+      <div className="mt-3 space-y-3">{children}</div>
+    </section>
+  );
+}
+
+function MobileAmountRow({ rank, label, value, total, note }: { rank?: number; label: string; value: number; total: number; note?: string }) {
+  const percent = total > 0 ? Math.max((value / total) * 100, 0) : 0;
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {rank && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-blue-600 shadow-sm">{rank}</span>}
+        <div className="min-w-0">
+          <div className="truncate text-sm font-black text-slate-800">{label}</div>
+          {note && <div className="mt-0.5 truncate text-xs font-bold text-slate-400">{note}</div>}
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <div className="text-sm font-black tabular-nums text-slate-900">{money(value)}</div>
+        <div className="mt-0.5 text-xs font-bold text-slate-400">占比 {percent.toFixed(1)}%</div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  const search = typeof window === 'undefined' ? '' : window.location.search;
+  const isMobilePreview = new URLSearchParams(search).get('view') === 'mobile';
+  return isMobilePreview ? <MobileManagerPreview /> : <DesktopDashboard />;
+}
+
+
+function DesktopDashboard() {
   const [dashboard, setDashboard] = useState<DashboardType>('simpleRevenue');
   const [period, setPeriod] = useState<Period>('today');
   const [store, setStore] = useState<StoreId>('all');
   const [tab, setTab] = useState<Tab>('project');
   const [selectedProject, setSelectedProject] = useState<Project>('passCard');
   const [venueGranularity, setVenueGranularity] = useState<TimeGranularity>(1);
+  const [customRange, setCustomRange] = useState<CustomDateRange>({ start: '2026-05-24', end: '2026-06-03' });
 
   const filteredOrders = useMemo(() => {
     const bucket = period === 'custom' ? ['today', 'week'] : [period];
@@ -334,6 +669,9 @@ function App() {
               <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'recognition' ? '\u786e\u8ba4\u6536\u5165\u62a5\u8868' : dashboard === 'courseTraining' ? '课程培训报表' : dashboard === 'venueBooking' ? '场地预订报表' : dashboard === 'simpleRevenue' ? '营收统计' : '收入分析看板'}</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <a href="?view=mobile" className="flex h-10 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
+                手机版预览
+              </a>
               <IconAction label="刷新">
                 <RefreshCw size={17} />
               </IconAction>
@@ -348,15 +686,15 @@ function App() {
           {dashboard === 'recognition' ? (
             <RecognitionIncomeDashboard store={store} onStoreChange={setStore} />
           ) : dashboard === 'simpleRevenue' ? (
-            <SimpleRevenueDashboard period={period} store={store} onPeriodChange={setPeriod} onStoreChange={setStore} orders={filteredOrders} />
+            <SimpleRevenueDashboard period={period} store={store} customRange={customRange} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} orders={filteredOrders} />
           ) : dashboard === 'venueBooking' ? (
-            <VenueBookingReport period={period} store={store} granularity={venueGranularity} onPeriodChange={setPeriod} onStoreChange={setStore} onGranularityChange={setVenueGranularity} orders={filteredOrders} />
+            <VenueBookingReport period={period} store={store} customRange={customRange} granularity={venueGranularity} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} onGranularityChange={setVenueGranularity} orders={filteredOrders} />
           ) : dashboard === 'courseTraining' ? (
-            <CourseTrainingReport period={period} onPeriodChange={setPeriod} />
+            <CourseTrainingReport period={period} customRange={customRange} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} />
           ) : (
             <>
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
-            <Segmented value={period} onChange={setPeriod} />
+            <Segmented value={period} customRange={customRange} onChange={setPeriod} onCustomRangeChange={setCustomRange} />
             <SelectBox icon={Building2} value={store} onChange={(value) => setStore(value as StoreId)} options={stores} />
           </div>
 
@@ -443,13 +781,17 @@ function App() {
 function SimpleRevenueDashboard({
   period,
   store,
+  customRange,
   onPeriodChange,
+  onCustomRangeChange,
   onStoreChange,
   orders,
 }: {
   period: Period;
   store: StoreId;
+  customRange: CustomDateRange;
   onPeriodChange: (period: Period) => void;
+  onCustomRangeChange: (range: CustomDateRange) => void;
   onStoreChange: (store: StoreId) => void;
   orders: RevenueOrder[];
 }) {
@@ -458,7 +800,7 @@ function SimpleRevenueDashboard({
   const projectRows = useMemo(() => orderProjectRows(groupBy(platformOrders, 'project')).sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [platformOrders]);
   const sportRows = useMemo(() => groupBySport(platformOrders), [platformOrders]);
   const sourceRows = useMemo(() => groupBy(platformOrders, 'source').sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [platformOrders]);
-  const activePeriod = periods.find((item) => item.id === period)!;
+  const activePeriod = getActivePeriod(period, customRange);
   const [revenueBreakdownTab, setRevenueBreakdownTab] = useState<'salesProject' | 'sportProject' | 'salesChannel'>('salesProject');
   const revenueBreakdownRows = revenueBreakdownTab === 'salesProject' ? projectRows : revenueBreakdownTab === 'sportProject' ? sportRows : sourceRows;
   const revenueBreakdownType = revenueBreakdownTab === 'salesProject' ? 'project' : revenueBreakdownTab === 'sportProject' ? 'sport' : 'source';
@@ -468,7 +810,7 @@ function SimpleRevenueDashboard({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <Segmented value={period} onChange={onPeriodChange} />
+          <Segmented value={period} customRange={customRange} onChange={onPeriodChange} onCustomRangeChange={onCustomRangeChange} />
           <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
         </div>
       </div>
@@ -572,7 +914,7 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
     {
       key: 'merchant',
       title: '商户自行收款',
-      helper: '使用收银台登记订单，资金由商户自行核对',
+      helper: '收银台下单，资金入账由商户自行核对',
       tone: 'emerald',
       payments: ['corporate', 'offline'] as Payment[],
       details: [
@@ -879,11 +1221,10 @@ const courseProductRows: CourseProductRow[] = [
   { courseType: 'group', name: '\u4f53\u80fd\u8bad\u7ec3\u56e2\u8bfe', soldHours: 44, soldAmount: 13200, completedHours: 18, completedAmount: 5400, remainingHours: 26 },
 ];
 
-function CourseTrainingReport({ period, onPeriodChange }: { period: Period; onPeriodChange: (period: Period) => void }) {
-  const [courseType, setCourseType] = useState<CourseType>('all');
+function CourseTrainingReport({ period, customRange, onPeriodChange, onCustomRangeChange }: { period: Period; customRange: CustomDateRange; onPeriodChange: (period: Period) => void; onCustomRangeChange: (range: CustomDateRange) => void }) {
   const [venue, setVenue] = useState<StoreId>('all');
   const activePeriod = periods.find((item) => item.id === period)!;
-  const filtered = useMemo(() => courseStats.filter((item) => (venue === 'all' || item.venue === venue) && (courseType === 'all' || item.courseType === courseType)), [venue, courseType]);
+  const filtered = useMemo(() => courseStats.filter((item) => venue === 'all' || item.venue === venue), [venue]);
   const totals = useMemo(() => summarizeCourseStats(filtered), [filtered]);
   const typeRows = useMemo(() => groupCourseStats(filtered, 'courseType'), [filtered]);
   const coachRows = useMemo(() => groupCourseStats(filtered, 'coach'), [filtered]);
@@ -892,17 +1233,16 @@ function CourseTrainingReport({ period, onPeriodChange }: { period: Period; onPe
     <div className="space-y-5">
       <div className="flex flex-wrap items-start gap-3">
         <div>
-          <Segmented value={period} onChange={onPeriodChange} />
+          <Segmented value={period} customRange={customRange} onChange={onPeriodChange} onCustomRangeChange={onCustomRangeChange} />
           <div className="mt-1.5 text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}</div>
         </div>
         <SelectBox icon={Building2} value={venue} onChange={(value) => setVenue(value as StoreId)} options={stores} />
-        <SelectBox icon={CreditCard} value={courseType} onChange={(value) => setCourseType(value as CourseType)} options={courseTypeOptions} />
       </div>
 
       <CourseAssetOverview totals={totals} range={activePeriod.range} />
 
       <Panel title="课程表现" icon={TicketCheck} subtitle="统计区间内，比较课程售课和消课效率">
-        <CourseProductAnalysis activeType={courseType} />
+        <CourseProductAnalysis activeType="all" />
       </Panel>
 
       <Panel title="上课分析" icon={BarChart3} subtitle={(venue === 'all' ? '全部场馆' : stores.find((item) => item.id === venue)?.name) + ' · 统计区间内'}>
@@ -1116,15 +1456,14 @@ function CourseProductAnalysis({ activeType }: { activeType: CourseType }) {
 function CourseClassAnalysisSummary({ totals, coachRows }: { totals: CourseSummary; coachRows: { key: string; total: CourseSummary }[] }) {
   const studentRows = buildStudentFrequencyRows(totals);
   const totalStudents = studentRows.reduce((sum, row) => sum + row.count, 0);
-  const coachCount = coachRows.length;
-
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-4">
-        <MiniStat label={'\u4e0a\u8bfe\u6559\u7ec3\u6570'} value={String(coachCount) + '\u4eba'} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <MiniStat label={'\u4e0a\u8bfe\u5b66\u5458\u6570'} value={String(totalStudents) + '\u4eba'} />
         <MiniStat label={'\u5df2\u6d88\u8bfe\u65f6'} value={String(totals.completedHours) + '\u8bfe\u65f6'} />
         <MiniStat label={'\u6d88\u8bfe\u91d1\u989d'} value={money(totals.completedAmount)} />
+        <MiniStat label={'\u5f85\u4e0a\u8bfe\u8bfe\u65f6'} value={String(totals.pendingHours) + '\u8bfe\u65f6'} />
+        <MiniStat label={'\u5df2\u53d6\u6d88\u8bfe\u65f6'} value={String(totals.cancelledHours) + '\u8bfe\u65f6'} />
       </div>
       <div className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500">
         {'\u53e3\u5f84\u8bf4\u660e\uff1a\u5f85\u4e0a\u8bfe\u8bfe\u65f6\u6307\u5df2\u7ecf\u9884\u7ea6\u6392\u8bfe\u3001\u4f46\u5c1a\u672a\u5b9e\u9645\u5b8c\u6210\u4e0a\u8bfe\u7684\u8bfe\u65f6\uff0c\u4e0d\u7b49\u540c\u4e8e\u6240\u6709\u5269\u4f59\u672a\u6d88\u8017\u8bfe\u65f6\u3002'}
@@ -1300,16 +1639,20 @@ function ProgressMetric({ label, value, helper, tone = 'blue' }: { label: string
 function VenueBookingReport({
   period,
   store,
+  customRange,
   granularity,
   onPeriodChange,
+  onCustomRangeChange,
   onStoreChange,
   onGranularityChange,
   orders,
 }: {
   period: Period;
   store: StoreId;
+  customRange: CustomDateRange;
   granularity: TimeGranularity;
   onPeriodChange: (period: Period) => void;
+  onCustomRangeChange: (range: CustomDateRange) => void;
   onStoreChange: (store: StoreId) => void;
   onGranularityChange: (value: TimeGranularity) => void;
   orders: RevenueOrder[];
@@ -1318,24 +1661,29 @@ function VenueBookingReport({
     () => orders.filter((order) => order.project === 'venue' && (order.source === 'miniProgram' || order.source === 'cashier')),
     [orders],
   );
-  const totals = useMemo(() => summarize(venueOrders), [venueOrders]);
-  const sourceRows = useMemo(() => groupBy(venueOrders, 'source').filter((row) => row.key === 'miniProgram' || row.key === 'cashier'), [venueOrders]);
+  const totals = useMemo(() => summarizeVenueFinancial(venueOrders), [venueOrders]);
+  const baseSourceRows = useMemo(() => groupVenueFinancialBy(venueOrders, 'source').filter((row) => row.key === 'miniProgram' || row.key === 'cashier'), [venueOrders]);
+  const [selectedSubVenue, setSelectedSubVenue] = useState<VenueSubVenue>('all');
+  const selectedSubVenueTotal = useMemo(() => selectedSubVenue === 'all' ? totals : scaleVenueTotal(totals, getVenueSubVenueWeight(selectedSubVenue)), [selectedSubVenue, totals]);
+  const sourceRows = useMemo(() => selectedSubVenue === 'all' ? baseSourceRows : scaleVenueRows(baseSourceRows, getVenueSubVenueWeight(selectedSubVenue)), [baseSourceRows, selectedSubVenue]);
   const courtRows = useMemo(() => buildCourtRows(totals), [totals]);
   const [analysisTab, setAnalysisTab] = useState<'time' | 'court'>('time');
+  const [analysisVenue, setAnalysisVenue] = useState<VenueSubVenue>('badminton');
   const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
   const selectedCourtTotals = useMemo(() => {
     const activeRows = selectedCourts.length === 0 ? courtRows : courtRows.filter((row) => selectedCourts.includes(row.key));
     return mergeVenueTotals(activeRows.map((row) => row.total));
   }, [courtRows, selectedCourts]);
   const timeRows = useMemo(() => buildVenueTimeRows(selectedCourtTotals, granularity), [selectedCourtTotals, granularity]);
-  const memberRows = useMemo(() => buildMemberRows(totals), [totals]);
-  const activePeriod = periods.find((item) => item.id === period)!;
+  const memberRows = useMemo(() => buildMemberRows(selectedSubVenueTotal), [selectedSubVenueTotal]);
+  const sceneRows = useMemo(() => buildVenueSceneRows(selectedSubVenueTotal), [selectedSubVenueTotal]);
+  const activePeriod = getActivePeriod(period, customRange);
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start gap-3">
         <div>
-          <Segmented value={period} onChange={onPeriodChange} />
+          <Segmented value={period} customRange={customRange} onChange={onPeriodChange} onCustomRangeChange={onCustomRangeChange} />
           <div className="mt-1.5 text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}</div>
         </div>
         <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
@@ -1343,13 +1691,12 @@ function VenueBookingReport({
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
         <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
-          <BillFormulaItem label="场地预订平台营收金额" value={money(totals.actualRevenue)} primary />
+          <BillFormulaItem label="场地预订净成交金额" value={money(selectedSubVenueTotal.actualRevenue)} primary />
           <FormulaOperator value="=" />
-          <BillFormulaItem label="销售总额" value={money(totals.sales)} note="小程序、收银台场地预订订单" />
+          <BillFormulaItem label="销售总额" value={money(selectedSubVenueTotal.sales)} note="小程序、收银台场地预订订单" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="平台退款金额" value={money(totals.refund)} note="场地预订退款冲减" />
-          <FormulaOperator value="-" />
-          <BillFormulaItem label="储值余额消耗" value={money(totals.storedBalance)} note="储值余额支付订场，不重复计入营收" />
+          <BillFormulaItem label="平台退款金额" value={money(selectedSubVenueTotal.refund)} note="场地预订退款冲减" />
+          <BillFormulaItem label="储值余额消耗" value={money(selectedSubVenueTotal.storedBalance)} note="储值余额支付订场，已包含在销售总额内" />
         </div>
       </section>
 
@@ -1357,10 +1704,12 @@ function VenueBookingReport({
         <CompactRevenueCards
           title="销售渠道"
           rows={sourceRows.map((row) => ({ key: sourceMeta[row.key as Source].name, total: row.total }))}
-          total={totals.actualRevenue}
+          total={selectedSubVenueTotal.actualRevenue}
         />
-        <CompactRevenueCards title="用户类型" rows={memberRows} total={totals.actualRevenue} />
+        <CompactRevenueCards title="用户类型" rows={memberRows} total={selectedSubVenueTotal.actualRevenue} />
       </section>
+
+      <VenueSceneTable rows={sceneRows} subVenue={selectedSubVenue} />
 
       <section className="rounded-lg border border-slate-100 bg-white shadow-sm shadow-slate-200/30">
         <div className="flex min-h-12 items-center px-3.5 pt-3">
@@ -1370,6 +1719,7 @@ function VenueBookingReport({
           {analysisTab === 'time' ? (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-3">
+                <VenueAnalysisVenueSelect value={analysisVenue} onChange={(value) => { setAnalysisVenue(value); setSelectedCourts([]); }} />
                 <CourtMultiSelect rows={courtRows} selected={selectedCourts} onChange={setSelectedCourts} />
                 <GranularitySelect value={granularity} onChange={onGranularityChange} />
               </div>
@@ -1377,11 +1727,32 @@ function VenueBookingReport({
               <TimeFinancialTable rows={timeRows} />
             </div>
           ) : (
-            <CourtSalesTable rows={courtRows} />
+            <div className="space-y-4">
+              <VenueAnalysisVenueSelect value={analysisVenue} onChange={(value) => { setAnalysisVenue(value); setSelectedCourts([]); }} />
+              <CourtSalesTable rows={courtRows} />
+            </div>
           )}
         </div>
       </section>
     </div>
+  );
+}
+
+function VenueAnalysisVenueSelect({ value, onChange }: { value: VenueSubVenue; onChange: (value: VenueSubVenue) => void }) {
+  return (
+    <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
+      场馆选择
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as VenueSubVenue)}
+        className="min-w-28 bg-transparent outline-none"
+        disabled={venueAnalysisVenueOptions.length === 1}
+      >
+        {venueAnalysisVenueOptions.map((item) => (
+          <option key={item.id} value={item.id}>{item.name}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -1416,7 +1787,7 @@ function CourtMultiSelect({ rows, selected, onChange }: { rows: CourtSalesRow[];
   );
 }
 
-function VenueLineChart({ rows }: { rows: { label: string; total: ReturnType<typeof summarize> }[] }) {
+function VenueLineChart({ rows }: { rows: { label: string; total: VenueFinancialTotal }[] }) {
   const values = rows.map((row) => Math.max(row.total.actualRevenue, 0));
   const max = Math.max(...values, 1);
   const width = 980;
@@ -1504,12 +1875,15 @@ function CompactRevenueCards({
   title,
   rows,
   total,
+  variant = 'default',
 }: {
   title: string;
   rows: { key: string; total: ReturnType<typeof summarize> | VenueFinancialTotal }[];
   total: number;
+  variant?: 'default' | 'wide';
 }) {
-  const colors = ['#e96a7a', '#a855f7', '#a5b4fc', '#38bdf8'];
+  const isWide = variant === 'wide';
+  const colors = ['#e96a7a', '#a855f7', '#a5b4fc', '#38bdf8', '#22c55e', '#f59e0b', '#14b8a6', '#6366f1', '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#64748b'];
   const values = rows.map((row) => Math.max(row.total.actualRevenue, 0));
   const sum = values.reduce((acc, value) => acc + value, 0);
   let offset = 0;
@@ -1519,7 +1893,7 @@ function CompactRevenueCards({
   return (
     <div className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/30">
       <div className="mb-3 text-sm font-black text-slate-800">{title}</div>
-      <div className="grid items-center gap-4 md:grid-cols-[220px_1fr]">
+      <div className={cn('grid items-center gap-4', isWide ? 'lg:grid-cols-[240px_1fr]' : 'md:grid-cols-[220px_1fr]')}>
         <div className="relative mx-auto h-56 w-56">
           <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
             <circle cx="80" cy="80" r={radius} fill="none" stroke="#eef2f7" strokeWidth="24" />
@@ -1549,16 +1923,16 @@ function CompactRevenueCards({
             <div className="mt-1 text-xs font-bold text-slate-400">平台营收</div>
           </div>
         </div>
-        <div className="space-y-3">
+        <div className={cn(isWide ? 'grid gap-2 sm:grid-cols-2 xl:grid-cols-4' : 'space-y-3')}>
           {rows.map((row, index) => {
             const value = values[index];
             const share = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0.0%';
             return (
-              <div key={row.key} className="flex items-start gap-3">
+              <div key={row.key} className={cn('flex items-start gap-3', isWide ? 'rounded-md bg-slate-50 px-2.5 py-2' : '')}>
                 <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-black text-slate-700">{row.key}</div>
-                  <div className="mt-1 text-base font-bold tabular-nums text-slate-900">{money(value)}</div>
+                  <div className={cn('font-bold tabular-nums text-slate-900', isWide ? 'mt-0.5 text-sm' : 'mt-1 text-base')}>{money(value)}</div>
                   <div className="mt-0.5 text-xs font-semibold text-slate-400">占比 {share}</div>
                 </div>
               </div>
@@ -1653,7 +2027,7 @@ type VenueFinancialTotal = {
 
 type CourtSalesRow = {
   key: string;
-  courtType: '普通场' | 'VIP场';
+  courtType: string;
   hours: number;
   total: VenueFinancialTotal;
 };
@@ -1710,7 +2084,7 @@ function buildVenueTimeRows(total: ReturnType<typeof summarize>, granularity: Ti
   return rows;
 }
 
-function buildCourtRows(total: ReturnType<typeof summarize>): CourtSalesRow[] {
+function buildCourtRows(total: VenueFinancialTotal): CourtSalesRow[] {
   const courts = [
     ...Array.from({ length: 10 }, (_, index) => ({ key: `${index + 1}号场`, courtType: '普通场' as const, weight: 0.072 + (index % 3) * 0.006 })),
     { key: 'VIP1号场', courtType: 'VIP场' as const, weight: 0.13 },
@@ -1728,12 +2102,12 @@ function buildCourtRows(total: ReturnType<typeof summarize>): CourtSalesRow[] {
   }));
 }
 
-function buildMemberRows(total: ReturnType<typeof summarize>) {
+function buildMemberRows(total: VenueFinancialTotal) {
   const vipSales = Math.round(total.sales * 0.56);
   const vipRefund = Math.round(total.refund * 0.45);
   const vipStored = total.storedBalance;
   const vipOrders = Math.round(total.orders * 0.52);
-  const vipActual = vipSales - vipRefund - vipStored;
+  const vipActual = Math.max(vipSales - vipRefund, 0);
   const guest = {
     sales: total.sales - vipSales,
     refund: total.refund - vipRefund,
@@ -1748,7 +2122,139 @@ function buildMemberRows(total: ReturnType<typeof summarize>) {
   ];
 }
 
-function distributeVenueFinancial(total: ReturnType<typeof summarize>, weights: number[], startHour = 0) {
+function VenueSceneTable({ rows }: { rows: { key: string; total: VenueFinancialTotal }[]; subVenue: VenueSubVenue }) {
+  const tableRows = buildVenueSceneDisplayRows(rows);
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-slate-100 bg-white shadow-sm shadow-slate-200/30">
+      <div className="border-b border-slate-100 px-4 py-3 text-sm font-black text-slate-800">场景分布</div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1560px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="bg-slate-50 text-xs font-black text-slate-700">
+              <th className="sticky left-0 z-10 border-b border-r border-slate-100 bg-slate-50 px-4 py-3 text-left">场馆名称</th>
+              {rows.map((row) => (
+                <th key={row.key} className="border-b border-r border-slate-100 px-4 py-3 text-left">{row.key}</th>
+              ))}
+              <th className="border-b border-r border-slate-100 bg-blue-50 px-4 py-3 text-left text-blue-700">合计</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableRows.map((venueRow) => (
+              <tr key={venueRow.name} className="font-bold text-slate-700">
+                <td className="sticky left-0 z-10 border-b border-r border-slate-100 bg-white px-4 py-4 text-slate-800">{venueRow.name}</td>
+                {venueRow.rows.map((row) => (
+                  <td key={row.key} className="border-b border-r border-slate-100 px-4 py-4 tabular-nums">
+                    {row.total.orders > 0 || row.total.actualRevenue > 0 ? `${row.total.orders}场，${money(row.total.actualRevenue)}` : '-'}
+                  </td>
+                ))}
+                <td className="border-b border-r border-slate-100 bg-blue-50/40 px-4 py-4 font-black tabular-nums text-blue-700">
+                  {venueRow.total.orders}场，{money(venueRow.total.actualRevenue)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function buildVenueSceneDisplayRows(rows: { key: string; total: VenueFinancialTotal }[]) {
+  const total = mergeVenueTotals(rows.map((row) => row.total));
+  const basketballAmount = Math.round(total.actualRevenue * 0.18);
+  const badmintonAmount = Math.max(total.actualRevenue - basketballAmount, 0);
+  const basketballOrders = Math.round(total.orders * 0.16);
+  const badmintonOrders = Math.max(total.orders - basketballOrders, 0);
+
+  const badmintonWeights: Record<string, number> = {
+    '常规订场': 0.5,
+    '换场': 0.08,
+    '培训': 0.12,
+    '赛事': 0.1,
+    '固定场': 0.12,
+    '活动': 0.05,
+    '其他': 0.03,
+  };
+
+  const badmintonRows = buildSparseVenueSceneRows(rows, badmintonAmount, badmintonOrders, badmintonWeights);
+  const basketballRows = buildSparseVenueSceneRows(rows, basketballAmount, basketballOrders, { '常规订场': 1 });
+
+  const displayRows = [
+    { name: '羽毛球馆', rows: badmintonRows },
+    { name: '篮球馆', rows: basketballRows },
+  ];
+
+  return displayRows.map((item) => ({
+    ...item,
+    total: mergeVenueTotals(item.rows.map((row) => row.total)),
+  }));
+}
+
+function buildSparseVenueSceneRows(rows: { key: string; total: VenueFinancialTotal }[], amountTotal: number, orderTotal: number, weights: Record<string, number>) {
+  let usedAmount = 0;
+  let usedOrders = 0;
+  const activeKeys = Object.keys(weights);
+
+  return rows.map((row) => {
+    const weight = weights[row.key] ?? 0;
+    const isLastActive = row.key === activeKeys[activeKeys.length - 1];
+    const amount = weight === 0 ? 0 : isLastActive ? Math.max(amountTotal - usedAmount, 0) : Math.round(amountTotal * weight);
+    const orders = weight === 0 ? 0 : isLastActive ? Math.max(orderTotal - usedOrders, 0) : Math.round(orderTotal * weight);
+    usedAmount += amount;
+    usedOrders += orders;
+    return {
+      key: row.key,
+      total: {
+        sales: amount,
+        refund: 0,
+        storedBalance: 0,
+        actualRevenue: amount,
+        orders,
+      },
+    };
+  });
+}
+
+function buildVenueSceneRows(total: VenueFinancialTotal) {
+  const scenes = [
+    { key: '常规订场', weight: 0.32 },
+    { key: '换场', weight: 0.1 },
+    { key: '锁场', weight: 0.08 },
+    { key: '培训', weight: 0.08 },
+    { key: '赛事', weight: 0.07 },
+    { key: '固定场', weight: 0.07 },
+    { key: '活动', weight: 0.06 },
+    { key: '接待', weight: 0.05 },
+    { key: '赠券', weight: 0.05 },
+    { key: '直播间购买', weight: 0.04 },
+    { key: '小程序秒杀', weight: 0.03 },
+    { key: '合作公司', weight: 0.03 },
+    { key: '其他', weight: 0.02 },
+  ];
+  const distributed = distributeVenueFinancial(total, scenes.map((scene) => scene.weight));
+  return scenes.map((scene, index) => ({ key: scene.key, total: distributed[index].total }));
+}
+
+function getVenueSubVenueWeight(subVenue: VenueSubVenue) {
+  return venueSubVenues.find((item) => item.id === subVenue)?.weight ?? 1;
+}
+
+function scaleVenueRows<T extends { key: string; total: VenueFinancialTotal }>(rows: T[], weight: number): T[] {
+  return rows.map((row) => ({ ...row, total: scaleVenueTotal(row.total, weight) }));
+}
+
+function scaleVenueTotal(total: VenueFinancialTotal, weight: number): VenueFinancialTotal {
+  return {
+    sales: Math.round(total.sales * weight),
+    refund: Math.round(total.refund * weight),
+    storedBalance: Math.round(total.storedBalance * weight),
+    actualRevenue: Math.max(Math.round(total.actualRevenue * weight), 0),
+    orders: Math.round(total.orders * weight),
+  };
+}
+
+function distributeVenueFinancial(total: VenueFinancialTotal, weights: number[], startHour = 0) {
   let usedSales = 0;
   let usedRefund = 0;
   let usedStored = 0;
@@ -1770,11 +2276,33 @@ function distributeVenueFinancial(total: ReturnType<typeof summarize>, weights: 
         sales,
         refund,
         storedBalance,
-        actualRevenue: sales - refund - storedBalance,
+        actualRevenue: Math.max(sales - refund, 0),
         orders,
       },
     };
   });
+}
+
+function summarizeVenueFinancial(rows: RevenueOrder[]): VenueFinancialTotal {
+  const total = summarize(rows);
+  return {
+    sales: total.sales,
+    refund: Math.min(total.refund, total.sales),
+    storedBalance: total.storedBalance,
+    actualRevenue: Math.max(total.sales - total.refund, 0),
+    orders: total.orders,
+  };
+}
+
+function groupVenueFinancialBy<T extends keyof RevenueOrder>(rows: RevenueOrder[], key: T) {
+  const grouped = new Map<string, RevenueOrder[]>();
+  rows.forEach((row) => {
+    const groupKey = String(row[key]);
+    grouped.set(groupKey, [...(grouped.get(groupKey) ?? []), row]);
+  });
+  return Array.from(grouped.entries())
+    .map(([groupKey, groupRows]) => ({ key: groupKey, total: summarizeVenueFinancial(groupRows) }))
+    .sort((a, b) => b.total.actualRevenue - a.total.actualRevenue);
 }
 
 function mergeVenueTotals(totals: VenueFinancialTotal[]) {
@@ -2541,16 +3069,276 @@ function orderProjectRows(rows: { key: string; total: ReturnType<typeof summariz
   });
 }
 
-function Segmented({ value, onChange }: { value: Period; onChange: (value: Period) => void }) {
+function Segmented({
+  value,
+  customRange,
+  onChange,
+  onCustomRangeChange,
+}: {
+  value: Period;
+  customRange: CustomDateRange;
+  onChange: (value: Period) => void;
+  onCustomRangeChange: (range: CustomDateRange) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState<CustomDateRange>(customRange);
+  const [leftMonth, setLeftMonth] = useState(() => startOfMonth(parseIsoDate(customRange.start)));
+  const rightMonth = addCalendarMonths(leftMonth, 1);
+  const quickRanges = [
+    { label: '今日', start: '2026-06-22', end: '2026-06-22' },
+    { label: '昨日', start: '2026-06-21', end: '2026-06-21' },
+    { label: '明日', start: '2026-06-23', end: '2026-06-23' },
+    { label: '本周', start: '2026-06-22', end: '2026-06-28' },
+    { label: '上周', start: '2026-06-15', end: '2026-06-21' },
+    { label: '本月', start: '2026-06-01', end: '2026-06-30' },
+    { label: '上月', start: '2026-05-01', end: '2026-05-31' },
+    { label: '今年', start: '2026-01-01', end: '2026-12-31' },
+    { label: '过去 7 天', start: '2026-06-16', end: '2026-06-22' },
+    { label: '过去 14 天', start: '2026-06-09', end: '2026-06-22' },
+    { label: '未来 7 天', start: '2026-06-22', end: '2026-06-28' },
+    { label: '未来 14 天', start: '2026-06-22', end: '2026-07-05' },
+    { label: '过去', start: '2026-01-01', end: '2026-06-21' },
+    { label: '未来', start: '2026-06-23', end: '2026-12-31' },
+    { label: '静态', start: '2026-05-01', end: '2026-06-30' },
+  ];
+
+  const openCustomPicker = () => {
+    setDraftRange(customRange);
+    setLeftMonth(startOfMonth(parseIsoDate(customRange.start)));
+    setOpen(true);
+  };
+
+  const applyQuickRange = (range: CustomDateRange) => {
+    setDraftRange(range);
+    setLeftMonth(startOfMonth(parseIsoDate(range.start)));
+  };
+
+  const selectDate = (date: Date) => {
+    const selected = isoFromDate(date);
+    setDraftRange((range) => {
+      if (!range.start || range.end) {
+        return { start: selected, end: '' };
+      }
+      if (selected < range.start) {
+        return { start: selected, end: range.start };
+      }
+      return { start: range.start, end: selected };
+    });
+  };
+
+  const applyCustomRange = () => {
+    const nextRange = draftRange.end ? draftRange : { ...draftRange, end: draftRange.start };
+    onCustomRangeChange(nextRange);
+    onChange('custom');
+    setOpen(false);
+  };
+
   return (
-    <div className="flex h-10 rounded-md bg-white p-1 ring-1 ring-slate-200">
-      {periods.map((item) => (
-        <button key={item.id} onClick={() => onChange(item.id)} className={cn('min-w-16 rounded px-3 text-sm font-bold', value === item.id ? 'bg-blue-600 text-white' : 'text-slate-600')}>
-          {item.name}
-        </button>
-      ))}
+    <div className="relative">
+      <div className="flex h-10 rounded-md bg-white p-1 ring-1 ring-slate-200">
+        {periods.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => {
+              if (item.id === 'custom') {
+                openCustomPicker();
+                return;
+              }
+              setOpen(false);
+              onChange(item.id);
+            }}
+            className={cn('min-w-16 rounded px-3 text-sm font-bold', value === item.id ? 'bg-blue-600 text-white' : 'text-slate-600')}
+          >
+            {item.name}
+          </button>
+        ))}
+      </div>
+
+      {open && (
+        <div className="absolute left-0 top-12 z-30 w-[1520px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl shadow-slate-300/40">
+          <div className="flex min-h-24 flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-5">
+            <div className="text-2xl font-black text-slate-900">选择日期范围</div>
+            <div className="flex flex-wrap items-center gap-3 text-lg font-bold text-slate-400">
+              <span>{draftRange.start || '开始日期'}</span>
+              <div className="flex h-16 w-48 items-center justify-between rounded-md border border-slate-200 bg-white px-5 text-2xl font-medium text-slate-900">
+                00:00:00
+                <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-slate-300 text-xs text-slate-400">⌚</span>
+              </div>
+              <span>～</span>
+              <span>{draftRange.end || '结束日期'}</span>
+              <div className="flex h-16 w-48 items-center justify-between rounded-md border border-slate-200 bg-white px-5 text-2xl font-medium text-slate-900">
+                23:59:59
+                <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-slate-300 text-xs text-slate-400">⌚</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setOpen(false)} className="h-12 rounded-md bg-slate-100 px-4 text-xl font-bold text-slate-800">取消</button>
+              <button onClick={applyCustomRange} className="h-12 rounded-md bg-blue-500 px-4 text-xl font-bold text-white">确定</button>
+            </div>
+          </div>
+
+          <div className="grid gap-7 px-6 py-6 lg:grid-cols-[342px_1fr_1fr]">
+            <DatePickerColumnTitle title="快捷选择" />
+            <DatePickerColumnTitle title="开始日期" />
+            <DatePickerColumnTitle title="结束日期" />
+
+            <div className="grid grid-cols-2 gap-2">
+              {quickRanges.map((item) => {
+                const active = draftRange.start === item.start && draftRange.end === item.end;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => applyQuickRange({ start: item.start, end: item.end })}
+                    className={cn('h-[57px] rounded-md text-2xl font-bold', active ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-900 hover:bg-slate-200')}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <DateMonthPanel
+              month={leftMonth}
+              range={draftRange}
+              onPrevYear={() => setLeftMonth(addCalendarMonths(leftMonth, -12))}
+              onPrevMonth={() => setLeftMonth(addCalendarMonths(leftMonth, -1))}
+              onNextMonth={() => setLeftMonth(addCalendarMonths(leftMonth, 1))}
+              onNextYear={() => setLeftMonth(addCalendarMonths(leftMonth, 12))}
+              onSelect={selectDate}
+            />
+            <DateMonthPanel
+              month={rightMonth}
+              range={draftRange}
+              onPrevYear={() => setLeftMonth(addCalendarMonths(leftMonth, -12))}
+              onPrevMonth={() => setLeftMonth(addCalendarMonths(leftMonth, -1))}
+              onNextMonth={() => setLeftMonth(addCalendarMonths(leftMonth, 1))}
+              onNextYear={() => setLeftMonth(addCalendarMonths(leftMonth, 12))}
+              onSelect={selectDate}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function DatePickerColumnTitle({ title }: { title: string }) {
+  return (
+    <div className="relative flex h-7 items-center justify-center text-2xl font-bold text-slate-400">
+      <span className="absolute inset-x-0 top-1/2 h-px bg-slate-200" />
+      <span className="relative bg-white px-6">{title}</span>
+    </div>
+  );
+}
+
+function DateMonthPanel({
+  month,
+  range,
+  onPrevYear,
+  onPrevMonth,
+  onNextMonth,
+  onNextYear,
+  onSelect,
+}: {
+  month: Date;
+  range: CustomDateRange;
+  onPrevYear: () => void;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  onNextYear: () => void;
+  onSelect: (date: Date) => void;
+}) {
+  return (
+    <div className="relative border border-slate-200 bg-white p-4">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[180px] font-black text-slate-100/70">
+        {month.getMonth() + 1}
+      </div>
+      <div className="relative z-10">
+        <div className="mb-5 flex items-center justify-between px-4 text-3xl font-bold text-slate-900">
+          <div className="flex gap-6 text-4xl font-light">
+            <button onClick={onPrevYear} className="leading-none">‹</button>
+            <button onClick={onPrevMonth} className="leading-none">‹</button>
+          </div>
+          <div>{formatMonthTitle(month)}</div>
+          <div className="flex gap-6 text-4xl font-light">
+            <button onClick={onNextMonth} className="leading-none">›</button>
+            <button onClick={onNextYear} className="leading-none">›</button>
+          </div>
+        </div>
+        <div className="mb-4 grid grid-cols-7 rounded-md bg-slate-100 py-3 text-center text-2xl font-bold text-slate-800">
+          {['一', '二', '三', '四', '五', '六', '日'].map((day) => (
+            <div key={day}>{day}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-y-3 text-center">
+          {monthCalendarDays(month).map((item, index) => {
+            const iso = isoFromDate(item.date);
+            const selected = iso === range.start || iso === range.end;
+            const inRange = isDateInRange(iso, range);
+            return (
+              <button
+                key={`${iso}-${index}`}
+                onClick={() => onSelect(item.date)}
+                className={cn(
+                  'mx-auto flex h-12 w-16 items-center justify-center rounded-md text-3xl font-medium',
+                  item.inMonth ? 'text-slate-900' : 'text-slate-200',
+                  inRange && !selected ? 'bg-blue-50 text-blue-700' : '',
+                  selected ? 'bg-blue-500 text-white' : '',
+                )}
+              >
+                {item.date.getDate()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getActivePeriod(period: Period, customRange: CustomDateRange) {
+  const current = periods.find((item) => item.id === period)!;
+  return period === 'custom' ? { ...current, range: formatDateRange(customRange) } : current;
+}
+
+function formatDateRange(range: CustomDateRange) {
+  return range.start === range.end ? range.start : `${range.start} 至 ${range.end}`;
+}
+
+function parseIsoDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function isoFromDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addCalendarMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function formatMonthTitle(date: Date) {
+  return `${date.getFullYear()} 年 ${String(date.getMonth() + 1).padStart(2, '0')} 月`;
+}
+
+function monthCalendarDays(month: Date) {
+  const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+  const mondayIndex = (firstDay.getDay() + 6) % 7;
+  const startDate = new Date(month.getFullYear(), month.getMonth(), 1 - mondayIndex);
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + index);
+    return { date, inMonth: date.getMonth() === month.getMonth() };
+  });
+}
+
+function isDateInRange(iso: string, range: CustomDateRange) {
+  if (!range.start || !range.end) return false;
+  return iso > range.start && iso < range.end;
 }
 
 function SelectBox({ icon: Icon, value, onChange, options }: { icon: typeof Store; value: string; onChange: (value: string) => void; options: { id: string; name: string }[] }) {
