@@ -684,7 +684,7 @@ function DesktopDashboard() {
 
         <section className="px-4 py-4 lg:px-6">
           {dashboard === 'recognition' ? (
-            <RecognitionIncomeDashboard store={store} onStoreChange={setStore} />
+            <RecognitionIncomeDashboard period={period} customRange={customRange} store={store} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} />
           ) : dashboard === 'simpleRevenue' ? (
             <SimpleRevenueDashboard period={period} store={store} customRange={customRange} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} orders={filteredOrders} />
           ) : dashboard === 'venueBooking' ? (
@@ -1691,7 +1691,7 @@ function VenueBookingReport({
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
         <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
-          <BillFormulaItem label="场地预订净成交金额" value={money(selectedSubVenueTotal.actualRevenue)} primary />
+          <BillFormulaItem label="场地预订营收金额" value={money(selectedSubVenueTotal.actualRevenue)} primary />
           <FormulaOperator value="=" />
           <BillFormulaItem label="销售总额" value={money(selectedSubVenueTotal.sales)} note="小程序、收银台场地预订订单" />
           <FormulaOperator value="-" />
@@ -2322,9 +2322,24 @@ function padHour(value: number) {
   return String(value).padStart(2, '0');
 }
 
-function RecognitionIncomeDashboard({ store, onStoreChange }: { store: StoreId; onStoreChange: (store: StoreId) => void }) {
-  const [recognitionMonth, setRecognitionMonth] = useState(defaultRecognitionMonth);
+function RecognitionIncomeDashboard({
+  period,
+  customRange,
+  store,
+  onPeriodChange,
+  onCustomRangeChange,
+  onStoreChange,
+}: {
+  period: Period;
+  customRange: CustomDateRange;
+  store: StoreId;
+  onPeriodChange: (period: Period) => void;
+  onCustomRangeChange: (range: CustomDateRange) => void;
+  onStoreChange: (store: StoreId) => void;
+}) {
   const [recognitionStoreTab, setRecognitionStoreTab] = useState<'store' | 'product'>('store');
+  const activePeriod = getActivePeriod(period, customRange);
+  const recognitionMonth = getRecognitionMonthForPeriod(period, customRange);
   const cards = useMemo(() => recognitionCardSales.filter((item) => store === 'all' || item.store === store), [store]);
   const metrics = useMemo(() => recognitionReportMetrics(cards, recognitionMonth), [cards, recognitionMonth]);
   const categoryRows = useMemo(() => recognitionReportCategoryRows(cards, recognitionMonth), [cards, recognitionMonth]);
@@ -2335,7 +2350,10 @@ function RecognitionIncomeDashboard({ store, onStoreChange }: { store: StoreId; 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start gap-3 border-b border-slate-200 pb-4">
-        <SelectBox icon={CalendarDays} value={recognitionMonth} onChange={setRecognitionMonth} options={recognitionMonthOptions} />
+        <div>
+          <Segmented value={period} customRange={customRange} onChange={onPeriodChange} onCustomRangeChange={onCustomRangeChange} />
+          <div className="mt-1.5 text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}</div>
+        </div>
         <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={fitnessStores} />
       </div>
 
@@ -2381,6 +2399,11 @@ function RecognitionIncomeDashboard({ store, onStoreChange }: { store: StoreId; 
       </Panel>
     </div>
   );
+}
+
+function getRecognitionMonthForPeriod(period: Period, customRange: CustomDateRange) {
+  if (period === 'custom') return customRange.end.slice(0, 7);
+  return defaultRecognitionMonth;
 }
 
 function recognitionReportMetrics(items: RecognitionCardSale[], month: string) {
