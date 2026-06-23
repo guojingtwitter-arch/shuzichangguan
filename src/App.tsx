@@ -799,13 +799,12 @@ function SimpleRevenueDashboard({
   const totals = useMemo(() => summarize(orders), [orders]);
   const platformOrders = useMemo(() => orders.filter((order) => order.payment !== 'meituanGroup' && order.payment !== 'douyinGroup'), [orders]);
   const projectRows = useMemo(() => orderProjectRows(groupBy(platformOrders, 'project')).sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [platformOrders]);
-  const sportRows = useMemo(() => groupBySport(platformOrders), [platformOrders]);
   const sourceRows = useMemo(() => groupBy(platformOrders, 'source').sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [platformOrders]);
   const activePeriod = getActivePeriod(period, customRange);
-  const [revenueBreakdownTab, setRevenueBreakdownTab] = useState<'salesProject' | 'sportProject' | 'salesChannel'>('salesProject');
-  const revenueBreakdownRows = revenueBreakdownTab === 'salesProject' ? projectRows : revenueBreakdownTab === 'sportProject' ? sportRows : sourceRows;
-  const revenueBreakdownType = revenueBreakdownTab === 'salesProject' ? 'project' : revenueBreakdownTab === 'sportProject' ? 'sport' : 'source';
-  const revenueBreakdownTitle = revenueBreakdownTab === 'salesProject' ? '销售项目构成' : revenueBreakdownTab === 'sportProject' ? '运动项目构成' : '销售渠道构成';
+  const [revenueBreakdownTab, setRevenueBreakdownTab] = useState<'salesProject' | 'salesChannel'>('salesProject');
+  const revenueBreakdownRows = revenueBreakdownTab === 'salesProject' ? projectRows : sourceRows;
+  const revenueBreakdownType = revenueBreakdownTab === 'salesProject' ? 'project' : 'source';
+  const revenueBreakdownTitle = revenueBreakdownTab === 'salesProject' ? '销售项目构成' : '销售渠道构成';
 
   return (
     <div className="space-y-5">
@@ -822,9 +821,9 @@ function SimpleRevenueDashboard({
         <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
           <BillFormulaItem label="平台营收金额" value={money(totals.actualRevenue)} primary />
           <FormulaOperator value="=" />
-          <BillFormulaItem label="平台销售总额" value={money(totals.sales)} note="数字场馆平台内已支付订单金额" />
+          <BillFormulaItem label="平台销售总额" value={money(totals.sales)} note="平台已支付订单金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="平台退款金额" value={money(totals.refund)} note="平台可获取的退款冲减金额" />
+          <BillFormulaItem label="平台退款金额" value={money(totals.refund)} note="平台退款冲减金额" />
           <FormulaOperator value="-" />
           <BillFormulaItem label="储值卡支付" value={money(totals.storedBalance)} note="储值卡预收余额使用，不重复确认营收" />
         </div>
@@ -840,7 +839,6 @@ function SimpleRevenueDashboard({
         {[
           { id: 'salesProject', name: '销售项目' },
           { id: 'salesChannel', name: '销售渠道' },
-          { id: 'sportProject', name: '运动项目' },
         ].map((item) => (
           <button
             key={item.id}
@@ -854,7 +852,6 @@ function SimpleRevenueDashboard({
 
       <RevenueBreakdownTable title={revenueBreakdownTitle} rows={revenueBreakdownRows} type={revenueBreakdownType} total={totals.actualRevenue} />
 
-      <SectionIntro title="收款归集" />
       <SettlementReconciliationPanel orders={orders} />
 
       <KeyMetricNotes
@@ -862,6 +859,7 @@ function SimpleRevenueDashboard({
           '平台营收金额 = 平台销售总额 - 平台退款金额 - 储值卡支付。',
           '第三方团购不计入平台营收金额，仅作为核销参考。',
           '收款归集按资金入账去向展示，平台收款未扣除支付手续费。',
+          '账户对账仅统计平台收款；同一场馆同一账户合并展示渠道，不同场馆即使共用账户也按场馆拆分；金额已扣退款，未扣支付手续费。',
         ]}
       />
 
@@ -926,6 +924,7 @@ function SummaryMiniStat({ label, value, tone }: { label: string; value: string;
 }
 
 function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
+  const [activeTab, setActiveTab] = useState<'collection' | 'account'>('collection');
   const totals = summarize(orders);
   const groupDefinitions = [
     {
@@ -968,9 +967,28 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
   });
   const platformNet = settlementRows.find((row) => row.key === 'platform')?.netAmount ?? 0;
   const merchantNet = settlementRows.find((row) => row.key === 'merchant')?.netAmount ?? 0;
+  const accountRows = buildPlatformAccountRows(orders);
 
   return (
     <Panel title="收款归集与对账" icon={Wallet} action="按收款去向拆解">
+      <div className="mb-3 inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+        {[
+          { key: 'collection', label: '收款归集' },
+          { key: 'account', label: '账户对账' },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setActiveTab(item.key as typeof activeTab)}
+            className={cn('rounded px-4 py-2 text-sm font-black transition', activeTab === item.key ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900')}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'collection' ? (
+      <>
       <div className="grid gap-3 xl:grid-cols-3">
         {settlementRows.map((group) => {
           const toneClass = group.tone === 'blue' ? 'border-blue-100 bg-blue-50/60 text-blue-800' : group.tone === 'emerald' ? 'border-emerald-100 bg-emerald-50/60 text-emerald-800' : 'border-amber-100 bg-amber-50/70 text-amber-800';
@@ -1006,8 +1024,108 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
       <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 px-3.5 py-3 text-sm font-black text-indigo-900">
         平台营收金额 {money(totals.actualRevenue)} = 平台收款 {money(platformNet)} + 商户自行收款 {money(merchantNet)}
       </div>
+      </>
+      ) : (
+        <AccountReconciliationTable rows={accountRows} />
+      )}
     </Panel>
   );
+}
+
+function AccountReconciliationTable({ rows }: { rows: PlatformAccountRow[] }) {
+  const total = rows.reduce((sum, row) => sum + row.amount, 0);
+  return (
+    <div className="space-y-3">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="text-xs font-black text-slate-500">
+              <th className="border-b border-slate-100 px-3 py-3 text-left">场馆名称</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-left">收款渠道</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-left">收款账户</th>
+              <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">收款金额</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.venueName + row.accountName} className="font-bold text-slate-800">
+                <td className="border-b border-slate-100 px-3 py-3">{row.venueName}</td>
+                <td className="border-b border-slate-100 px-3 py-3">{row.channels.join(' + ')}</td>
+                <td className="border-b border-slate-100 px-3 py-3">{row.accountName}</td>
+                <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.amount)}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-50 text-sm font-black text-slate-900">
+              <td className="border-t border-slate-200 px-3 py-3" colSpan={3}>合计</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-right tabular-nums text-blue-700">{money(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+type PlatformAccountRow = {
+  venueName: string;
+  accountName: string;
+  channels: string[];
+  amount: number;
+};
+
+function buildPlatformAccountRows(orders: RevenueOrder[]): PlatformAccountRow[] {
+  const accountConfig: Record<Exclude<StoreId, 'all'>, Partial<Record<'miniProgram' | 'cashier', { venueName: string; accountName: string }>>> = {
+    north: {
+      miniProgram: { venueName: '湖滨旗舰店', accountName: '湖滨旗舰店收款账户A' },
+      cashier: { venueName: '湖滨旗舰店', accountName: '湖滨旗舰店收款账户B' },
+    },
+    river: {
+      miniProgram: { venueName: '江湾训练馆', accountName: '江湾训练馆收款账户' },
+      cashier: { venueName: '江湾训练馆', accountName: '江湾训练馆收款账户' },
+    },
+    east: {
+      miniProgram: { venueName: '东城综合馆', accountName: '东城综合馆收款账户' },
+      cashier: { venueName: '东城综合馆', accountName: '东城综合馆收款账户' },
+    },
+    softB: {},
+    softF: {},
+    huaqiao: {},
+    jiageng: {},
+    lvcuo: {},
+    dihao: {},
+    sibei: {},
+    xianglu: {},
+    wanda: {},
+  };
+  const channelName: Record<'miniProgram' | 'cashier', string> = { miniProgram: '小程序', cashier: '收银台' };
+  const grouped = new Map<string, PlatformAccountRow>();
+
+  (Object.keys(accountConfig) as Exclude<StoreId, 'all'>[]).forEach((store) => {
+    (Object.keys(accountConfig[store]) as ('miniProgram' | 'cashier')[]).forEach((source) => {
+      const config = accountConfig[store][source];
+      if (!config) return;
+      const key = store + '|' + config.venueName + '|' + config.accountName;
+      const current = grouped.get(key) ?? { venueName: config.venueName, accountName: config.accountName, channels: [], amount: 0 };
+      if (!current.channels.includes(channelName[source])) current.channels.push(channelName[source]);
+      grouped.set(key, current);
+    });
+  });
+
+  orders
+    .filter((order) => order.payment === 'wechat' || order.payment === 'payCode')
+    .forEach((order) => {
+      const source = order.source === 'miniProgram' ? 'miniProgram' : 'cashier';
+      const config = accountConfig[order.store][source];
+      if (!config) return;
+      const key = order.store + '|' + config.venueName + '|' + config.accountName;
+      const current = grouped.get(key);
+      if (!current) return;
+      current.amount += Math.max(order.paid - (order.refund ?? 0), 0);
+    });
+
+  return Array.from(grouped.values())
+    .filter((row) => row.amount > 0)
+    .sort((a, b) => a.venueName.localeCompare(b.venueName, 'zh-Hans') || a.accountName.localeCompare(b.accountName, 'zh-Hans'));
 }
 
 function RevenueBreakdownTable({ title, rows, type, total }: {
@@ -1712,6 +1830,7 @@ function VenueBookingReport({
   }, [courtRows, selectedCourts]);
   const timeRows = useMemo(() => buildVenueTimeRows(selectedCourtTotals, granularity), [selectedCourtTotals, granularity]);
   const memberRows = useMemo(() => buildMemberRows(selectedSubVenueTotal), [selectedSubVenueTotal]);
+  const bookingMethodRows = useMemo(() => buildBookingMethodRows(selectedSubVenueTotal), [selectedSubVenueTotal]);
   const sceneRows = useMemo(() => buildVenueSceneRows(selectedSubVenueTotal), [selectedSubVenueTotal]);
   const activePeriod = getActivePeriod(period, customRange);
 
@@ -1729,21 +1848,24 @@ function VenueBookingReport({
         <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
           <BillFormulaItem label="场地预订营收金额" value={money(selectedSubVenueTotal.actualRevenue)} primary />
           <FormulaOperator value="=" />
-          <BillFormulaItem label="销售总额" value={money(selectedSubVenueTotal.sales)} note="小程序、收银台场地预订订单" />
+          <BillFormulaItem label="销售总额" value={money(selectedSubVenueTotal.sales)} note="平台已支付订场金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="平台退款金额" value={money(selectedSubVenueTotal.refund)} note="场地预订退款冲减" />
+          <BillFormulaItem label="平台退款金额" value={money(selectedSubVenueTotal.refund)} note="场地预订退款冲减金额" />
           <FormulaOperator value="-" />
           <BillFormulaItem label="储值卡支付" value={money(selectedSubVenueTotal.storedBalance)} note="储值卡预收余额使用，不重复确认营收" />
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <CompactRevenueCards
-          title="销售渠道"
-          rows={sourceRows.map((row) => ({ key: sourceMeta[row.key as Source].name, total: row.total }))}
-          total={selectedSubVenueTotal.actualRevenue}
-        />
-        <CompactRevenueCards title="用户类型" rows={memberRows} total={selectedSubVenueTotal.actualRevenue} />
+      <section>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <CompactRevenueCards
+            title="销售渠道"
+            rows={sourceRows.map((row) => ({ key: sourceMeta[row.key as Source].name, total: row.total }))}
+            total={selectedSubVenueTotal.actualRevenue}
+          />
+          <CompactRevenueCards title="用户类型" rows={memberRows} total={selectedSubVenueTotal.actualRevenue} />
+          <CompactRevenueCards title="订场方式" rows={bookingMethodRows} total={selectedSubVenueTotal.actualRevenue} />
+        </div>
       </section>
 
       <VenueSceneTable rows={sceneRows} subVenue={selectedSubVenue} />
@@ -1776,8 +1898,8 @@ function VenueBookingReport({
         items={[
           '场地预订营收金额 = 场地预订销售总额 - 退款金额 - 储值卡支付。',
           '储值卡支付为储值卡预收余额使用，不重复确认营收。',
+          '销售渠道、用户类型、订场方式均按场地预订营收金额拆分，合计金额一致。',
           '场景分布按场馆和订场场景展示，空值表示当前无该场景发生额。',
-          '分时段分析、场地号分析用于查看订场高峰和场地利用情况。',
         ]}
       />
     </div>
@@ -1965,8 +2087,8 @@ function CompactRevenueCards({
             })}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <div className="text-2xl font-black tracking-normal text-slate-900">{money(sum)}</div>
-            <div className="mt-1 text-xs font-bold text-slate-400">平台营收</div>
+            <div className="text-xs font-bold text-slate-400">合计</div>
+            <div className="mt-1 text-lg font-black tracking-normal text-slate-900">{money(sum)}</div>
           </div>
         </div>
         <div className={cn(isWide ? 'grid gap-2 sm:grid-cols-2 xl:grid-cols-4' : 'space-y-3')}>
@@ -2168,6 +2290,15 @@ function buildMemberRows(total: VenueFinancialTotal) {
   ];
 }
 
+function buildBookingMethodRows(total: VenueFinancialTotal) {
+  const methods = [
+    { key: '普通场订场', weight: 0.78 },
+    { key: '固定场订场', weight: 0.22 },
+  ];
+  const distributed = distributeVenueFinancial(total, methods.map((method) => method.weight));
+  return methods.map((method, index) => ({ key: method.key, total: distributed[index].total }));
+}
+
 function VenueSceneTable({ rows }: { rows: { key: string; total: VenueFinancialTotal }[]; subVenue: VenueSubVenue }) {
   const tableRows = buildVenueSceneDisplayRows(rows);
 
@@ -2175,7 +2306,7 @@ function VenueSceneTable({ rows }: { rows: { key: string; total: VenueFinancialT
     <section className="overflow-hidden rounded-lg border border-slate-100 bg-white shadow-sm shadow-slate-200/30">
       <div className="border-b border-slate-100 px-4 py-3 text-sm font-black text-slate-800">场景分布</div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1560px] border-separate border-spacing-0 text-sm">
+        <table className="w-full min-w-[1440px] border-separate border-spacing-0 text-sm">
           <thead>
             <tr className="bg-slate-50 text-xs font-black text-slate-700">
               <th className="sticky left-0 z-10 border-b border-r border-slate-100 bg-slate-50 px-4 py-3 text-left">场馆名称</th>
@@ -2216,10 +2347,9 @@ function buildVenueSceneDisplayRows(rows: { key: string; total: VenueFinancialTo
   const badmintonWeights: Record<string, number> = {
     '常规订场': 0.5,
     '换场': 0.08,
-    '培训': 0.12,
-    '赛事': 0.1,
-    '固定场': 0.12,
-    '活动': 0.05,
+    '培训': 0.14,
+    '赛事': 0.11,
+    '活动': 0.06,
     '其他': 0.03,
   };
 
@@ -2267,9 +2397,8 @@ function buildVenueSceneRows(total: VenueFinancialTotal) {
     { key: '常规订场', weight: 0.32 },
     { key: '换场', weight: 0.1 },
     { key: '锁场', weight: 0.08 },
-    { key: '培训', weight: 0.08 },
-    { key: '赛事', weight: 0.07 },
-    { key: '固定场', weight: 0.07 },
+    { key: '培训', weight: 0.09 },
+    { key: '赛事', weight: 0.08 },
     { key: '活动', weight: 0.06 },
     { key: '接待', weight: 0.05 },
     { key: '赠券', weight: 0.05 },
@@ -2322,7 +2451,7 @@ function distributeVenueFinancial(total: VenueFinancialTotal, weights: number[],
         sales,
         refund,
         storedBalance,
-        actualRevenue: Math.max(sales - refund, 0),
+        actualRevenue: Math.max(sales - refund - storedBalance, 0),
         orders,
       },
     };
