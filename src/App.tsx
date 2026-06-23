@@ -115,7 +115,7 @@ const sourceMeta: Record<Source, { name: string; tag?: string; color: string }> 
 const paymentMeta: Record<Payment, { name: string; settlement: 'platform' | 'merchant' | 'thirdParty' | 'nonCash'; note: string; icon: typeof Wallet }> = {
   wechat: { name: '微信支付（小程序收款）', settlement: 'platform', note: '可在商户后台核对入账', icon: Wallet },
   payCode: { name: '商户扫码（收银台收款）', settlement: 'platform', note: '可在商户后台核对入账', icon: ReceiptText },
-  storedBalance: { name: '储值余额消耗', settlement: 'nonCash', note: '平台预收款余额消耗，不重复确认营收', icon: CreditCard },
+  storedBalance: { name: '储值卡支付', settlement: 'nonCash', note: '储值卡预收余额使用，不重复确认营收', icon: CreditCard },
   offline: { name: '线下付款', settlement: 'merchant', note: '使用收银台登记订单，资金由商户自行核对', icon: Store },
   corporate: { name: '对公转账', settlement: 'merchant', note: '使用收银台登记订单，资金由商户自行核对', icon: Landmark },
   free: { name: '无需支付', settlement: 'nonCash', note: '金额为 0，保留订单数', icon: CircleDollarSign },
@@ -434,7 +434,7 @@ function MobileRevenueReport({ orders }: { orders: RevenueOrder[] }) {
         <MobileMetric title="平台营收金额" value={money(totals.actualRevenue)} tone="blue" />
         <MobileMetric title="平台销售总额" value={money(totals.sales)} />
         <MobileMetric title="平台退款金额" value={money(totals.refund)} />
-        <MobileMetric title="储值余额消耗" value={money(totals.storedBalance)} />
+        <MobileMetric title="储值卡支付" value={money(totals.storedBalance)} />
       </MobileMetricGrid>
       <MobileListCard title="销售项目">
         {projectRows.map((row, index) => (
@@ -702,7 +702,7 @@ function DesktopDashboard() {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，仅统计支付成功 / 核销完成订单，不含撤单、作废订单。</div>
             <div className="rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-              平台营收金额 = 平台销售总额 - 平台退款金额 - 储值余额消耗；第三方团购核销额单独展示，不计入平台营收金额。
+              平台营收金额 = 平台销售总额 - 平台退款金额 - 储值卡支付；第三方团购核销额单独展示，不计入平台营收金额。
             </div>
           </div>
 
@@ -826,7 +826,7 @@ function SimpleRevenueDashboard({
           <FormulaOperator value="-" />
           <BillFormulaItem label="平台退款金额" value={money(totals.refund)} note="平台可获取的退款冲减金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="储值余额消耗" value={money(totals.storedBalance)} note="平台预收余额使用，不重复确认营收" />
+          <BillFormulaItem label="储值卡支付" value={money(totals.storedBalance)} note="储值卡预收余额使用，不重复确认营收" />
         </div>
       </section>
 
@@ -859,7 +859,7 @@ function SimpleRevenueDashboard({
 
       <KeyMetricNotes
         items={[
-          '平台营收金额 = 平台销售总额 - 平台退款金额 - 储值余额消耗。',
+          '平台营收金额 = 平台销售总额 - 平台退款金额 - 储值卡支付。',
           '第三方团购不计入平台营收金额，仅作为核销参考。',
           '收款归集按资金入账去向展示，平台收款未扣除支付手续费。',
         ]}
@@ -1027,7 +1027,7 @@ function RevenueBreakdownTable({ title, rows, type, total }: {
               <th className="w-[220px] border-b border-slate-100 py-3 pr-3 text-left">{type === 'project' ? '销售项目' : type === 'sport' ? '运动项目' : '销售渠道'}</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">平台销售总额</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">储值余额消耗</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">平台营收金额</th>
               <th className="w-[150px] border-b border-slate-100 py-3 pl-3 text-right">占比</th>
             </tr>
@@ -1141,7 +1141,7 @@ function FinancialSummaryPanel({
                     <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] font-bold xl:grid-cols-4">
                       <SummaryMiniStat label="平台销售总额" value={money(row.total.sales)} tone="slate" />
                       <SummaryMiniStat label="平台退款金额" value={money(row.total.refund)} tone={row.total.refund > 0 ? 'amber' : 'muted'} />
-                      <SummaryMiniStat label="储值余额消耗" value={money(row.total.storedBalance)} tone="blue" />
+                      <SummaryMiniStat label="储值卡支付" value={money(row.total.storedBalance)} tone="blue" />
                       <SummaryMiniStat label="平台营收金额" value={money(row.total.actualRevenue)} tone="slate" />
                     </div>
                   ) : (
@@ -1732,7 +1732,8 @@ function VenueBookingReport({
           <BillFormulaItem label="销售总额" value={money(selectedSubVenueTotal.sales)} note="小程序、收银台场地预订订单" />
           <FormulaOperator value="-" />
           <BillFormulaItem label="平台退款金额" value={money(selectedSubVenueTotal.refund)} note="场地预订退款冲减" />
-          <BillFormulaItem label="储值余额消耗" value={money(selectedSubVenueTotal.storedBalance)} note="平台预收余额使用，不重复确认当期营收" />
+          <FormulaOperator value="-" />
+          <BillFormulaItem label="储值卡支付" value={money(selectedSubVenueTotal.storedBalance)} note="储值卡预收余额使用，不重复确认营收" />
         </div>
       </section>
 
@@ -1773,8 +1774,8 @@ function VenueBookingReport({
 
       <KeyMetricNotes
         items={[
-          '场地预订营收金额 = 场地预订销售总额 - 退款金额 - 储值余额消耗。',
-          '储值余额消耗属于平台预收款使用，不重复确认为当期营收。',
+          '场地预订营收金额 = 场地预订销售总额 - 退款金额 - 储值卡支付。',
+          '储值卡支付为储值卡预收余额使用，不重复确认营收。',
           '场景分布按场馆和订场场景展示，空值表示当前无该场景发生额。',
           '分时段分析、场地号分析用于查看订场高峰和场地利用情况。',
         ]}
@@ -1877,7 +1878,7 @@ function TimeFinancialTable({ rows }: { rows: { label: string; total: VenueFinan
             <th className="border-b border-slate-100 px-3 py-3 text-left">时段</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值余额消耗</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
             <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
           </tr>
         </thead>
@@ -2035,7 +2036,7 @@ function VenueFinancialTable({
             <th className="border-b border-slate-100 px-3 py-3 text-left">{firstColumn}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值余额消耗</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
             <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
             {showShare && <th className="border-b border-slate-100 px-3 py-3 text-right">占比</th>}
@@ -2087,7 +2088,7 @@ function CourtSalesTable({ rows }: { rows: CourtSalesRow[] }) {
             <th className="border-b border-slate-100 px-3 py-3 text-left">场地类型</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值余额消耗</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
             <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">预订时长</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
@@ -2384,6 +2385,7 @@ function RecognitionIncomeDashboard({
 }) {
   const [recognitionStoreTab, setRecognitionStoreTab] = useState<'store' | 'product'>('store');
   const activePeriod = getActivePeriod(period, customRange);
+  const periodLabel = getRecognitionPeriodLabel(period);
   const recognitionMonth = getRecognitionMonthForPeriod(period, customRange);
   const cards = useMemo(() => recognitionCardSales.filter((item) => store === 'all' || item.store === store), [store]);
   const metrics = useMemo(() => recognitionReportMetrics(cards, recognitionMonth), [cards, recognitionMonth]);
@@ -2403,10 +2405,10 @@ function RecognitionIncomeDashboard({
       </div>
 
       <section className="grid gap-3 lg:grid-cols-4">
-        <MetricCard title={'\u672c\u6708\u786e\u8ba4\u6536\u5165'} value={money(metrics.currentRecognized)} accent="bg-blue-600 text-white ring-1 ring-blue-500" large />
-        <MetricCard title={'\u672c\u6708\u9500\u552e\u91d1\u989d'} value={money(metrics.monthlySalesTotal)} />
-        <MetricCard title={'\u671f\u672b\u5f85\u786e\u8ba4\u6536\u5165'} value={money(metrics.pending)} />
-        <MetricCard title={'\u672c\u6708\u65b0\u552e\u5f85\u786e\u8ba4'} value={money(metrics.monthlyPending)} />
+        <MetricCard title={periodLabel + '确认收入'} value={money(metrics.currentRecognized)} accent="bg-blue-600 text-white ring-1 ring-blue-500" large />
+        <MetricCard title={periodLabel + '销售金额'} value={money(metrics.monthlySalesTotal)} />
+        <MetricCard title={'期末待确认收入'} value={money(metrics.pending)} />
+        <MetricCard title={periodLabel + '新售待确认'} value={money(metrics.monthlyPending)} />
       </section>
 
       <div className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500">
@@ -2414,7 +2416,7 @@ function RecognitionIncomeDashboard({
       </div>
 
       <Panel title={'\u6536\u5165\u7c7b\u578b\u7edf\u8ba1'} icon={CreditCard} subtitle={'\u6708\u5ea6\u7ed3\u8f6c\u53e3\u5f84'}>
-        <RecognitionReportCategoryTable rows={categoryRows} total={metrics.currentRecognized} />
+        <RecognitionReportCategoryTable rows={categoryRows} total={metrics.currentRecognized} periodLabel={periodLabel} />
       </Panel>
 
       <Panel title={'\u95e8\u5e97\u786e\u8ba4\u6536\u5165\u7edf\u8ba1'} icon={Building2}>
@@ -2436,11 +2438,11 @@ function RecognitionIncomeDashboard({
             </button>
           ))}
         </div>
-        {recognitionStoreTab === 'store' ? <RecognitionReportStoreTable rows={storeRows} /> : <RecognitionReportProductTable rows={productRows} />}
+        {recognitionStoreTab === 'store' ? <RecognitionReportStoreTable rows={storeRows} periodLabel={periodLabel} /> : <RecognitionReportProductTable rows={productRows} periodLabel={periodLabel} />}
       </Panel>
 
       <Panel title={'\u5468\u671f\u7ed3\u8f6c\u660e\u7ec6'} icon={ReceiptText}>
-        <RecognitionReportDetailTable rows={detailRows} />
+        <RecognitionReportDetailTable rows={detailRows} periodLabel={periodLabel} />
       </Panel>
 
       <KeyMetricNotes
@@ -2453,6 +2455,13 @@ function RecognitionIncomeDashboard({
       />
     </div>
   );
+}
+
+function getRecognitionPeriodLabel(period: Period) {
+  if (period === 'today') return '本日';
+  if (period === 'week') return '本周';
+  if (period === 'month') return '本月';
+  return '自定义';
 }
 
 function getRecognitionMonthForPeriod(period: Period, customRange: CustomDateRange) {
@@ -2566,16 +2575,16 @@ function addMonths(month: string, offset: number) {
   return String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0');
 }
 
-function RecognitionReportCategoryTable({ rows, total }: { rows: ReturnType<typeof recognitionReportCategoryRows>; total: number }) {
+function RecognitionReportCategoryTable({ rows, total, periodLabel }: { rows: ReturnType<typeof recognitionReportCategoryRows>; total: number; periodLabel: string }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u6536\u5165\u7c7b\u578b'}</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u672c\u6708\u786e\u8ba4\u6536\u5165'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{periodLabel + '确认收入'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u5360\u6bd4'}</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u672c\u6708\u9500\u552e\u91d1\u989d'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{periodLabel + '销售金额'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u671f\u672b\u5f85\u786e\u8ba4\u6536\u5165'}</th>
           </tr>
         </thead>
@@ -2595,15 +2604,15 @@ function RecognitionReportCategoryTable({ rows, total }: { rows: ReturnType<type
   );
 }
 
-function RecognitionReportStoreTable({ rows }: { rows: ReturnType<typeof recognitionReportStoreRows> }) {
+function RecognitionReportStoreTable({ rows, periodLabel }: { rows: ReturnType<typeof recognitionReportStoreRows>; periodLabel: string }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u95e8\u5e97'}</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u672c\u6708\u786e\u8ba4\u6536\u5165'}</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u672c\u6708\u9500\u552e\u91d1\u989d'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{periodLabel + '确认收入'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{periodLabel + '销售金额'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u671f\u672b\u5f85\u786e\u8ba4\u6536\u5165'}</th>
           </tr>
         </thead>
@@ -2622,7 +2631,7 @@ function RecognitionReportStoreTable({ rows }: { rows: ReturnType<typeof recogni
   );
 }
 
-function RecognitionReportProductTable({ rows }: { rows: ReturnType<typeof recognitionReportProductRows> }) {
+function RecognitionReportProductTable({ rows, periodLabel }: { rows: ReturnType<typeof recognitionReportProductRows>; periodLabel: string }) {
   const total = rows.reduce(
     (sum, row) => ({
       currentRecognized: sum.currentRecognized + row.currentRecognized,
@@ -2639,8 +2648,8 @@ function RecognitionReportProductTable({ rows }: { rows: ReturnType<typeof recog
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u9879\u76ee/\u5361\u9879'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u6536\u5165\u7c7b\u578b'}</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u672c\u6708\u786e\u8ba4\u6536\u5165'}</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u672c\u6708\u9500\u552e\u91d1\u989d'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{periodLabel + '确认收入'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{periodLabel + '销售金额'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u671f\u672b\u5f85\u786e\u8ba4\u6536\u5165'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u786e\u8ba4\u671f\u6570'}</th>
           </tr>
@@ -2669,7 +2678,7 @@ function RecognitionReportProductTable({ rows }: { rows: ReturnType<typeof recog
   );
 }
 
-function RecognitionReportDetailTable({ rows }: { rows: ReturnType<typeof recognitionReportDetailRows> }) {
+function RecognitionReportDetailTable({ rows, periodLabel }: { rows: ReturnType<typeof recognitionReportDetailRows>; periodLabel: string }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-sm">
@@ -2682,8 +2691,8 @@ function RecognitionReportDetailTable({ rows }: { rows: ReturnType<typeof recogn
             <th className="border-b border-slate-100 px-3 py-3 text-left">{'\u652f\u4ed8\u6708\u4efd'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u5b9e\u6536\u91d1\u989d'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u786e\u8ba4\u671f\u6570'}</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{'\u672c\u6708\u786e\u8ba4\u6536\u5165'}</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u622a\u81f3\u672c\u6708\u5df2\u786e\u8ba4'}</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">{periodLabel + '确认收入'}</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">{'截至' + periodLabel + '已确认'}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">{'\u671f\u672b\u5f85\u786e\u8ba4'}</th>
           </tr>
         </thead>
@@ -2838,7 +2847,7 @@ function RecognitionCategorySummary({
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold">
               <div className="min-w-0 rounded bg-slate-50 px-2 py-2">
-                <div className="truncate text-slate-400">本月新售确认</div>
+                <div className="truncate text-slate-400">当前区间新售确认</div>
                 <div className="mt-1 truncate text-sm font-black text-slate-700">{money(row.currentSalesRecognized)}</div>
               </div>
               <div className="min-w-0 rounded bg-slate-50 px-2 py-2">
@@ -2876,10 +2885,10 @@ function RecognitionProductTable({ rows, category }: { rows: ReturnType<typeof g
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">统计项目</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">本月确认收入</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">本月销售金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">本月新售确认</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">本月新售待确认</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">当前区间确认收入</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">当前区间销售金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">当前区间新售确认</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">当前区间新售待确认</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">往期销售确认</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">往期销售待确认</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">确认期数</th>
@@ -2925,10 +2934,10 @@ function RecognitionStoreTable({ rows }: { rows: ReturnType<typeof groupRecognit
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">门店</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">本月确认收入</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">本月销售金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">本月新售确认</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">本月新售待确认</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">当前区间确认收入</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">当前区间销售金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">当前区间新售确认</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">当前区间新售待确认</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">往期销售确认</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">往期销售待确认</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">确认期数</th>
@@ -2984,12 +2993,12 @@ function RecognitionDetailTable({ rows, month }: { rows: RecognitionCardSale[]; 
               <th className="border-b border-slate-100 px-3 py-3 text-left">支付时间</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">实收金额</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">确认期数</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">截止本月已确认期数</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">截至当前区间已确认期数</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">待确认期数</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">本月确认收入</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">本月销售金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">当前区间确认收入</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">当前区间销售金额</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">待确认收入余额</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">本月新售确认</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">当前区间新售确认</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">往期确认</th>
             </tr>
           </thead>
@@ -3495,7 +3504,7 @@ function RevenueTotalCard({
     <div className="rounded-lg border border-blue-500 bg-blue-600 p-4 text-white shadow-sm shadow-blue-200/60">
       <div className="text-xs font-bold text-white/70">平台营收金额</div>
       <div className="mt-1.5 text-4xl font-black tracking-normal">{money(total)}</div>
-      <div className="mt-2 text-[11px] font-semibold text-white/65">平台销售总额 - 平台退款金额 - 储值余额消耗</div>
+      <div className="mt-2 text-[11px] font-semibold text-white/65">平台销售总额 - 平台退款金额 - 储值卡支付</div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {items.map((item) => (
           <div key={item.label} className="rounded-md bg-white/10 px-2.5 py-2.5">
@@ -3520,16 +3529,16 @@ function SalesBreakdownCards({ sales, storedBalance, actualRevenue, refund }: {
         <div className="rounded-lg bg-slate-50 p-4">
           <div className="text-xs font-bold text-slate-500">平台销售总额</div>
           <div className="mt-2 text-3xl font-black tracking-normal text-slate-800">{money(sales)}</div>
-          <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">含储值余额支付</div>
+          <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">含储值卡支付</div>
         </div>
         <div className="rounded-lg bg-slate-50 p-4">
-          <div className="text-xs font-bold text-slate-500">储值余额消耗</div>
+          <div className="text-xs font-bold text-slate-500">储值卡支付</div>
           <div className="mt-2 text-3xl font-black tracking-normal text-slate-800">{money(storedBalance)}</div>
           <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">用于扣减营收</div>
         </div>
       </div>
       <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-bold text-blue-700">
-        平台销售总额 {money(sales)} - 平台退款金额 {money(refund)} - 储值余额消耗 {money(storedBalance)} = 平台营收金额 {money(actualRevenue)}
+        平台销售总额 {money(sales)} - 平台退款金额 {money(refund)} - 储值卡支付 {money(storedBalance)} = 平台营收金额 {money(actualRevenue)}
       </div>
     </div>
   );
