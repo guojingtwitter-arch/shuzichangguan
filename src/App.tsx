@@ -102,7 +102,7 @@ const projectMeta: Record<Project, { name: string; short: string; color: string;
   storedCard: { name: '储值卡销售', short: '储值卡', color: 'bg-blue-500', icon: Wallet },
   courseCard: { name: '课程卡销售', short: '课程卡', color: 'bg-indigo-500', icon: TicketCheck },
   passCard: { name: '次卡 / 时间卡销售', short: '次卡时间卡', color: 'bg-amber-500', icon: CreditCard },
-  goods: { name: '商品销售（含直接收款）', short: '商品/直接收款', color: 'bg-rose-500', icon: ShoppingBag },
+  goods: { name: '商品销售（含快捷收款）', short: '商品/快捷收款', color: 'bg-rose-500', icon: ShoppingBag },
 };
 
 const sourceMeta: Record<Source, { name: string; tag?: string; color: string }> = {
@@ -113,9 +113,9 @@ const sourceMeta: Record<Source, { name: string; tag?: string; color: string }> 
 };
 
 const paymentMeta: Record<Payment, { name: string; settlement: 'platform' | 'merchant' | 'thirdParty' | 'nonCash'; note: string; icon: typeof Wallet }> = {
-  wechat: { name: '微信支付（小程序收款）', settlement: 'platform', note: '可在商户后台核对入账', icon: Wallet },
-  payCode: { name: '商户扫码（收银台收款）', settlement: 'platform', note: '可在商户后台核对入账', icon: ReceiptText },
-  storedBalance: { name: '储值卡支付', settlement: 'nonCash', note: '储值卡预收余额使用，不重复确认营收', icon: CreditCard },
+  wechat: { name: '小程序收款', settlement: 'platform', note: '可在商户后台核对入账', icon: Wallet },
+  payCode: { name: '收银台收款（商户扫码+用户扫码）', settlement: 'platform', note: '可在商户后台核对入账', icon: ReceiptText },
+  storedBalance: { name: '储值卡/余额支付', settlement: 'nonCash', note: '预收余额使用，不重复确认收入', icon: CreditCard },
   offline: { name: '线下付款', settlement: 'merchant', note: '使用收银台登记订单，资金由商户自行核对', icon: Store },
   corporate: { name: '对公转账', settlement: 'merchant', note: '使用收银台登记订单，资金由商户自行核对', icon: Landmark },
   free: { name: '无需支付', settlement: 'nonCash', note: '金额为 0，保留订单数', icon: CircleDollarSign },
@@ -424,17 +424,17 @@ function MobileReportPage({
 
 function MobileRevenueReport({ orders }: { orders: RevenueOrder[] }) {
   const totals = summarize(orders);
-  const platformOrders = orders.filter((order) => order.payment !== 'meituanGroup' && order.payment !== 'douyinGroup');
-  const projectRows = orderProjectRows(groupBy(platformOrders, 'project')).slice(0, 4);
-  const sourceRows = groupBy(platformOrders, 'source');
+  const operatingOrders = orders;
+  const projectRows = orderProjectRows(groupBy(operatingOrders, 'project')).slice(0, 4);
+  const sourceRows = groupBy(operatingOrders, 'source');
 
   return (
     <div className="space-y-3">
       <MobileMetricGrid>
-        <MobileMetric title="平台营收金额" value={money(totals.actualRevenue)} tone="blue" />
-        <MobileMetric title="平台销售总额" value={money(totals.sales)} />
-        <MobileMetric title="平台退款金额" value={money(totals.refund)} />
-        <MobileMetric title="储值卡支付" value={money(totals.storedBalance)} />
+        <MobileMetric title="经营营收金额" value={money(totals.actualRevenue)} tone="blue" />
+        <MobileMetric title="销售总额" value={money(totals.sales)} />
+        <MobileMetric title="退款金额" value={money(totals.refund)} />
+        <MobileMetric title="储值卡/余额支付" value={money(totals.storedBalance)} />
       </MobileMetricGrid>
       <MobileListCard title="销售项目">
         {projectRows.map((row, index) => (
@@ -455,7 +455,7 @@ function MobileRevenueReport({ orders }: { orders: RevenueOrder[] }) {
 }
 
 function MobileVenueReport({ orders }: { orders: RevenueOrder[] }) {
-  const venueOrders = orders.filter((order) => order.project === 'venue' && order.payment !== 'meituanGroup' && order.payment !== 'douyinGroup');
+  const venueOrders = orders.filter((order) => order.project === 'venue');
   const totals = summarize(venueOrders);
   const storeRows = groupBy(venueOrders, 'store').slice(0, 4);
   const hours = Math.round(totals.orders * 1.4);
@@ -605,7 +605,6 @@ function DesktopDashboard() {
   const [store, setStore] = useState<StoreId>('all');
   const [tab, setTab] = useState<Tab>('project');
   const [selectedProject, setSelectedProject] = useState<Project>('passCard');
-  const [venueGranularity, setVenueGranularity] = useState<TimeGranularity>(1);
   const [customRange, setCustomRange] = useState<CustomDateRange>({ start: '2026-05-24', end: '2026-06-03' });
 
   const filteredOrders = useMemo(() => {
@@ -689,7 +688,7 @@ function DesktopDashboard() {
           ) : dashboard === 'simpleRevenue' ? (
             <SimpleRevenueDashboard period={period} store={store} customRange={customRange} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} orders={filteredOrders} />
           ) : dashboard === 'venueBooking' ? (
-            <VenueBookingReport period={period} store={store} customRange={customRange} granularity={venueGranularity} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} onGranularityChange={setVenueGranularity} orders={filteredOrders} />
+            <VenueBookingReport period={period} store={store} customRange={customRange} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} orders={filteredOrders} />
           ) : dashboard === 'courseTraining' ? (
             <CourseTrainingReport period={period} customRange={customRange} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} />
           ) : (
@@ -702,14 +701,14 @@ function DesktopDashboard() {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，仅统计支付成功 / 核销完成订单，不含撤单、作废订单。</div>
             <div className="rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-              平台营收金额 = 平台销售总额 - 平台退款金额 - 储值卡支付；第三方团购核销额单独展示，不计入平台营收金额。
+              经营营收金额 = 销售总额 - 退款金额 - 储值卡/余额支付；美团、抖音等第三方团购核销计入经营发生口径。
             </div>
           </div>
 
           <section className={cn('mt-4 grid gap-2.5', dashboard === 'fitness' ? 'md:grid-cols-2 xl:grid-cols-5' : 'xl:grid-cols-[1.4fr_1fr]')}>
             {dashboard === 'fitness' ? (
               <>
-                <MetricCard title="平台营收金额" value={money(totals.actualRevenue)} helper="平台内可确认营收" />
+                <MetricCard title="经营营收金额" value={money(totals.actualRevenue)} helper="经营发生口径" />
                 <MetricCard title="小程序平台收款" value={money(miniProgramRevenue)} helper="小程序平台收款" />
                 <MetricCard title="收银台平台收款" value={money(cashierRevenue)} helper="收银台平台收款" />
                 <MetricCard title="美团核销" value={money(totals.meituan)} helper="第三方团购核销" />
@@ -797,9 +796,9 @@ function SimpleRevenueDashboard({
   orders: RevenueOrder[];
 }) {
   const totals = useMemo(() => summarize(orders), [orders]);
-  const platformOrders = useMemo(() => orders.filter((order) => order.payment !== 'meituanGroup' && order.payment !== 'douyinGroup'), [orders]);
-  const projectRows = useMemo(() => orderProjectRows(groupBy(platformOrders, 'project')).sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [platformOrders]);
-  const sourceRows = useMemo(() => groupBy(platformOrders, 'source').sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [platformOrders]);
+  const operatingOrders = orders;
+  const projectRows = useMemo(() => splitStoredCardProjectRows(orderProjectRows(groupBy(operatingOrders, 'project')).sort((a, b) => b.total.actualRevenue - a.total.actualRevenue)), [operatingOrders]);
+  const sourceRows = useMemo(() => groupBy(operatingOrders, 'source').sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [operatingOrders]);
   const activePeriod = getActivePeriod(period, customRange);
   const [revenueBreakdownTab, setRevenueBreakdownTab] = useState<'salesProject' | 'salesChannel'>('salesProject');
   const revenueBreakdownRows = revenueBreakdownTab === 'salesProject' ? projectRows : sourceRows;
@@ -815,25 +814,25 @@ function SimpleRevenueDashboard({
         </div>
       </div>
 
-      <SectionIntro title="平台营收概览" />
+      <SectionIntro title="经营营收概览" />
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
         <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
-          <BillFormulaItem label="平台营收金额" value={money(totals.actualRevenue)} primary />
+          <BillFormulaItem label="经营营收金额" value={money(totals.actualRevenue)} primary />
           <FormulaOperator value="=" />
-          <BillFormulaItem label="平台销售总额" value={money(totals.sales)} note="平台已支付订单金额" />
+          <BillFormulaItem label="销售总额" value={money(totals.sales)} note="已支付订单金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="平台退款金额" value={money(totals.refund)} note="平台退款冲减金额" />
+          <BillFormulaItem label="退款金额" value={money(totals.refund)} note="退款冲减金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="储值卡支付" value={money(totals.storedBalance)} note="储值卡预收余额使用，不重复确认营收" />
+          <BillFormulaItem label="储值卡/余额支付" value={money(totals.storedBalance)} note="预收余额使用，不重复确认收入" />
         </div>
       </section>
 
       <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-800">
-        统计区间：{activePeriod.range}，平台营收金额包括小程序 + 收银台（商户扫码 + 线下收款 + 对公转账）实际营收，不包含第三方团购。
+        统计区间：{activePeriod.range}，经营营收金额按经营发生口径统计，包含小程序、收银台、美团核销、抖音核销。
       </div>
 
-      <SectionIntro title="平台营收构成" />
+      <SectionIntro title="经营营收构成" />
 
       <div className="flex flex-wrap gap-2">
         {[
@@ -852,14 +851,15 @@ function SimpleRevenueDashboard({
 
       <RevenueBreakdownTable title={revenueBreakdownTitle} rows={revenueBreakdownRows} type={revenueBreakdownType} total={totals.actualRevenue} />
 
-      <RevenueSalesItemStatsPanel orders={platformOrders} />
+      <RevenueSalesItemStatsPanel orders={operatingOrders} />
 
       <SettlementReconciliationPanel orders={orders} />
 
       <KeyMetricNotes
         items={[
-          '平台营收金额 = 平台销售总额 - 平台退款金额 - 储值卡支付。',
-          '第三方团购不计入平台营收金额，仅作为核销参考。',
+          '经营营收金额 = 销售总额 - 退款金额 - 储值卡/余额支付。',
+          '经营营收金额按经营发生口径统计，包含小程序、收银台、美团核销、抖音核销。',
+          '美团、抖音核销计入经营营收金额，资金需到对应第三方平台核对。',
           '收款归集按资金入账去向展示，平台收款未扣除支付手续费。',
           '账户对账仅统计平台收款；同一场馆同一账户合并展示渠道，不同场馆即使共用账户也按场馆拆分；金额已扣退款，未扣支付手续费。',
         ]}
@@ -928,6 +928,7 @@ function SummaryMiniStat({ label, value, tone }: { label: string; value: string;
 type RevenueSalesItemRow = {
   store: Exclude<StoreId, 'all'>;
   project: Project;
+  projectName: string;
   itemName: string;
   sales: number;
   refund: number;
@@ -981,17 +982,17 @@ function RevenueSalesItemStatsPanel({ orders }: { orders: RevenueOrder[] }) {
               <th className="border-b border-slate-100 px-4 py-3 text-left">门店</th>
               <th className="border-b border-slate-100 px-4 py-3 text-left">销售项目</th>
               <th className="border-b border-slate-100 px-4 py-3 text-left">销售品项</th>
-              <th className="border-b border-slate-100 px-4 py-3 text-right">平台销售总额</th>
-              <th className="border-b border-slate-100 px-4 py-3 text-right">平台退款金额</th>
-              <th className="border-b border-slate-100 px-4 py-3 text-right">储值卡支付</th>
-              <th className="border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-right text-blue-700">平台营收金额</th>
+              <th className="border-b border-slate-100 px-4 py-3 text-right">销售总额</th>
+              <th className="border-b border-slate-100 px-4 py-3 text-right">退款金额</th>
+              <th className="border-b border-slate-100 px-4 py-3 text-right">储值卡/余额支付</th>
+              <th className="border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-right text-blue-700">经营营收金额</th>
             </tr>
           </thead>
           <tbody>
             {pageRows.map((row) => (
               <tr key={row.store + row.project + row.itemName} className="font-bold text-slate-800">
                 <td className="border-b border-slate-100 px-4 py-3">{stores.find((item) => item.id === row.store)?.name ?? row.store}</td>
-                <td className="border-b border-slate-100 px-4 py-3">{projectMeta[row.project].name}</td>
+                <td className="border-b border-slate-100 px-4 py-3">{row.projectName}</td>
                 <td className="border-b border-slate-100 px-4 py-3">{row.itemName}</td>
                 <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.sales)}</td>
                 <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.refund)}</td>
@@ -1023,33 +1024,67 @@ function RevenueSalesItemStatsPanel({ orders }: { orders: RevenueOrder[] }) {
 
 function buildRevenueSalesItemRows(orders: RevenueOrder[]): RevenueSalesItemRow[] {
   const grouped = new Map<string, RevenueSalesItemRow>();
-
-  orders.forEach((order) => {
-    const itemName = getRevenueSalesItemName(order);
-    const key = [order.store, order.project, itemName].join('|');
+  const addRow = (order: RevenueOrder, itemName: string, amount: { sales: number; refund: number; storedBalance: number; actualRevenue: number }) => {
+    const projectName = getRevenueSalesProjectName(order.project, itemName);
+    const key = [order.store, projectName, itemName].join('|');
     const current = grouped.get(key) ?? {
       store: order.store,
       project: order.project,
+      projectName,
       itemName,
       sales: 0,
       refund: 0,
       storedBalance: 0,
       actualRevenue: 0,
     };
+    current.sales += amount.sales;
+    current.refund += amount.refund;
+    current.storedBalance += amount.storedBalance;
+    current.actualRevenue += amount.actualRevenue;
+    grouped.set(key, current);
+  };
+
+  orders.forEach((order) => {
     const refund = order.refund ?? 0;
     const storedBalance = order.payment === 'storedBalance' ? order.paid : 0;
-    current.sales += order.paid;
-    current.refund += refund;
-    current.storedBalance += storedBalance;
-    current.actualRevenue += order.paid - refund - storedBalance;
-    grouped.set(key, current);
+    const actualRevenue = order.paid - refund - storedBalance;
+
+    if (order.project === 'storedCard') {
+      splitRevenueSalesItemAmount({ sales: order.paid, refund, storedBalance, actualRevenue }, [0.68, 0.32]).forEach((amount, index) => {
+        addRow(order, index === 0 ? '储值卡销售' : '余额充值', amount);
+      });
+      return;
+    }
+
+    addRow(order, getRevenueSalesItemName(order), { sales: order.paid, refund, storedBalance, actualRevenue });
   });
 
   return Array.from(grouped.values()).filter((row) => row.sales > 0).sort((a, b) => {
     const storeCompare = (stores.findIndex((item) => item.id === a.store) - stores.findIndex((item) => item.id === b.store));
     if (storeCompare !== 0) return storeCompare;
-    if (a.project !== b.project) return projectMeta[a.project].name.localeCompare(projectMeta[b.project].name, 'zh-Hans');
+    if (a.projectName !== b.projectName) return a.projectName.localeCompare(b.projectName, 'zh-Hans');
     return b.actualRevenue - a.actualRevenue;
+  });
+}
+
+function splitRevenueSalesItemAmount(total: { sales: number; refund: number; storedBalance: number; actualRevenue: number }, weights: number[]) {
+  let usedSales = 0;
+  let usedRefund = 0;
+  let usedStoredBalance = 0;
+  let usedActualRevenue = 0;
+  return weights.map((weight, index) => {
+    const isLast = index === weights.length - 1;
+    const amount = {
+      sales: isLast ? total.sales - usedSales : Math.round(total.sales * weight),
+      refund: isLast ? total.refund - usedRefund : Math.round(total.refund * weight),
+      storedBalance: isLast ? total.storedBalance - usedStoredBalance : Math.round(total.storedBalance * weight),
+      actualRevenue: isLast ? total.actualRevenue - usedActualRevenue : Math.round(total.actualRevenue * weight),
+    };
+    usedSales += amount.sales;
+    usedRefund += amount.refund;
+    usedStoredBalance += amount.storedBalance;
+    usedActualRevenue += amount.actualRevenue;
+    return amount;
   });
 }
 
@@ -1068,13 +1103,19 @@ function summarizeSalesItemRows(rows: RevenueSalesItemRow[]) {
 function getRevenueSalesItemName(order: RevenueOrder) {
   const itemNames: Record<Project, string[]> = {
     venue: ['羽毛球馆订场', '篮球馆订场'],
-    storedCard: ['储值卡 1000 元档', '储值卡 3000 元档', '储值卡 5000 元档'],
+    storedCard: ['储值卡销售', '余额充值'],
     courseCard: ['少儿羽毛球 10 课时', '成人私教 8 课时', '篮球基础班 12 课时'],
     passCard: ['自助训练月卡', '自助训练季卡', '羽毛球 10 次卡'],
-    goods: ['运动饮料', '球拍租赁', '羽毛球耗材'],
+    goods: ['商品销售（含快捷收款）'],
   };
   const index = Math.abs(order.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % itemNames[order.project].length;
   return itemNames[order.project][index];
+}
+
+function getRevenueSalesProjectName(project: Project, itemName: string) {
+  if (project === 'storedCard' && itemName === '余额充值') return '余额充值';
+  if (project === 'storedCard' && itemName === '储值卡销售') return '储值卡销售';
+  return projectMeta[project].name;
 }
 
 function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
@@ -1088,8 +1129,8 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
       tone: 'blue',
       payments: ['payCode', 'wechat'] as Payment[],
       details: [
-        { label: '商户扫码（收银台收款）', payment: 'payCode' as Payment },
-        { label: '微信支付（小程序收款）', payment: 'wechat' as Payment },
+        { label: '收银台收款（商户扫码+用户扫码）', payment: 'payCode' as Payment },
+        { label: '小程序收款', payment: 'wechat' as Payment },
       ],
     },
     {
@@ -1121,6 +1162,7 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
   });
   const platformNet = settlementRows.find((row) => row.key === 'platform')?.netAmount ?? 0;
   const merchantNet = settlementRows.find((row) => row.key === 'merchant')?.netAmount ?? 0;
+  const thirdPartyNet = settlementRows.find((row) => row.key === 'thirdParty')?.netAmount ?? 0;
   const accountRows = buildPlatformAccountRows(orders);
 
   return (
@@ -1176,7 +1218,7 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
       </div>
 
       <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 px-3.5 py-3 text-sm font-black text-indigo-900">
-        平台营收金额 {money(totals.actualRevenue)} = 平台收款 {money(platformNet)} + 商户自行收款 {money(merchantNet)}
+        经营营收金额 {money(totals.actualRevenue)} = 平台收款 {money(platformNet)} + 商户自行收款 {money(merchantNet)} + 第三方团购 {money(thirdPartyNet)}
       </div>
       </>
       ) : (
@@ -1191,7 +1233,7 @@ function AccountReconciliationTable({ rows }: { rows: PlatformAccountRow[] }) {
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
+        <table className="w-full min-w-[680px] border-separate border-spacing-0 text-sm">
           <thead>
             <tr className="text-xs font-black text-slate-500">
               <th className="border-b border-slate-100 px-3 py-3 text-left">场馆名称</th>
@@ -1282,6 +1324,38 @@ function buildPlatformAccountRows(orders: RevenueOrder[]): PlatformAccountRow[] 
     .sort((a, b) => a.venueName.localeCompare(b.venueName, 'zh-Hans') || a.accountName.localeCompare(b.accountName, 'zh-Hans'));
 }
 
+const projectBreakdownMeta: Record<string, { name: string; color: string; icon: typeof Store }> = {
+  storedCard: { name: '储值卡销售', color: 'bg-blue-500', icon: Wallet },
+  balanceRecharge: { name: '余额充值', color: 'bg-sky-500', icon: Wallet },
+};
+
+function splitStoredCardProjectRows(rows: { key: string; total: ReturnType<typeof summarize> }[]) {
+  return rows.flatMap((row) => {
+    if (row.key !== 'storedCard') return [row];
+    const [storedCardTotal, balanceTotal] = splitSummaryTotal(row.total, [0.68, 0.32]);
+    return [
+      { key: 'storedCard', total: storedCardTotal },
+      { key: 'balanceRecharge', total: balanceTotal },
+    ];
+  });
+}
+
+function splitSummaryTotal(total: ReturnType<typeof summarize>, weights: number[]) {
+  const keys = Object.keys(total) as (keyof ReturnType<typeof summarize>)[];
+  const used = Object.fromEntries(keys.map((key) => [key, 0])) as ReturnType<typeof summarize>;
+
+  return weights.map((weight, index) => {
+    const isLast = index === weights.length - 1;
+    const item = { ...summarize([]) };
+    keys.forEach((key) => {
+      const value = isLast ? total[key] - used[key] : Math.round(total[key] * weight);
+      item[key] = value;
+      used[key] += value;
+    });
+    return item;
+  });
+}
+
 function RevenueBreakdownTable({ title, rows, type, total }: {
   title: string;
   rows: { key: string; total: ReturnType<typeof summarize> }[];
@@ -1297,10 +1371,10 @@ function RevenueBreakdownTable({ title, rows, type, total }: {
           <thead>
             <tr className="text-xs font-black text-slate-500">
               <th className="w-[220px] border-b border-slate-100 py-3 pr-3 text-left">{type === 'project' ? '销售项目' : type === 'sport' ? '运动项目' : '销售渠道'}</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">平台销售总额</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">平台营收金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡/余额支付</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">经营营收金额</th>
               <th className="w-[150px] border-b border-slate-100 py-3 pl-3 text-right">占比</th>
             </tr>
           </thead>
@@ -1394,7 +1468,7 @@ function FinancialSummaryPanel({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <div className="text-xl font-black tracking-normal text-slate-900">{money(sum)}</div>
-            <div className="mt-1 text-[11px] font-bold text-slate-400">{type === 'project' || type === 'sport' || type === 'source' ? '平台营收金额' : '核对金额'}</div>
+            <div className="mt-1 text-[11px] font-bold text-slate-400">{type === 'project' || type === 'sport' || type === 'source' ? '经营营收金额' : '核对金额'}</div>
           </div>
         </div>
         <div className="space-y-2.5">
@@ -1411,10 +1485,10 @@ function FinancialSummaryPanel({
                   {type === 'source' && row.key === 'cashier' && <div className="mt-0.5 text-xs font-bold text-slate-400">含商户扫码、线下付款、对公转账</div>}
                   {type === 'project' || type === 'sport' || type === 'source' ? (
                     <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] font-bold xl:grid-cols-4">
-                      <SummaryMiniStat label="平台销售总额" value={money(row.total.sales)} tone="slate" />
-                      <SummaryMiniStat label="平台退款金额" value={money(row.total.refund)} tone={row.total.refund > 0 ? 'amber' : 'muted'} />
-                      <SummaryMiniStat label="储值卡支付" value={money(row.total.storedBalance)} tone="blue" />
-                      <SummaryMiniStat label="平台营收金额" value={money(row.total.actualRevenue)} tone="slate" />
+                      <SummaryMiniStat label="销售总额" value={money(row.total.sales)} tone="slate" />
+                      <SummaryMiniStat label="退款金额" value={money(row.total.refund)} tone={row.total.refund > 0 ? 'amber' : 'muted'} />
+                      <SummaryMiniStat label="储值卡/余额支付" value={money(row.total.storedBalance)} tone="blue" />
+                      <SummaryMiniStat label="经营营收金额" value={money(row.total.actualRevenue)} tone="slate" />
                     </div>
                   ) : (
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
@@ -1526,8 +1600,10 @@ function CourseTrainingReport({ period, customRange, onPeriodChange, onCustomRan
   const activePeriod = periods.find((item) => item.id === period)!;
   const filtered = useMemo(() => courseStats.filter((item) => venue === 'all' || item.venue === venue), [venue]);
   const totals = useMemo(() => summarizeCourseStats(filtered), [filtered]);
-  const typeRows = useMemo(() => groupCourseStats(filtered, 'courseType'), [filtered]);
-  const coachRows = useMemo(() => groupCourseStats(filtered, 'coach'), [filtered]);
+  const salesRows = useMemo(() => buildCourseSalesAnalysisRows(filtered), [filtered]);
+  const consumptionRows = useMemo(() => buildCourseConsumptionRows(filtered), [filtered]);
+  const coachRows = useMemo(() => buildCourseCoachRows(filtered), [filtered]);
+  const refundRows = useMemo(() => buildCourseRefundRows(filtered), [filtered]);
 
   return (
     <div className="space-y-5">
@@ -1541,23 +1617,446 @@ function CourseTrainingReport({ period, customRange, onPeriodChange, onCustomRan
 
       <CourseAssetOverview totals={totals} range={activePeriod.range} />
 
-      <Panel title="课程表现" icon={TicketCheck} subtitle="统计区间内，比较课程售课和消课效率">
-        <CourseProductAnalysis activeType="all" />
-      </Panel>
-
-      <Panel title="上课分析" icon={BarChart3} subtitle={(venue === 'all' ? '全部场馆' : stores.find((item) => item.id === venue)?.name) + ' · 统计区间内'}>
-        <CourseClassAnalysisSummary totals={totals} coachRows={coachRows} />
-      </Panel>
+      <CourseSalesAnalysisPanel rows={salesRows} />
+      <CourseConsumptionAnalysisPanel totals={totals} courseRows={consumptionRows} coachRows={coachRows} />
+      <CourseRefundAnalysisPanel rows={refundRows} />
 
       <KeyMetricNotes
         items={[
-          '售课金额统计所选区间内课程卡、课包销售发生额。',
-          '消课金额按已完成上课课时确认，已取消课时不计入消课金额。',
-          '待上课课时指已排课但尚未完成的课时，不等同于全部未消耗课时。',
+          '课程经营概览按顶部门店和时间筛选汇总，只呈现售课、消课、待履约三个大方向。',
+          '课程培训报表按课程业务发生口径统计，包含小程序、收银台、美团核销、抖音核销等课程订单；金额用于经营分析，并与营收报表的经营发生口径保持一致。',
+          '售课分析仅统计区间内交易成功且未退款的课程订单；销售渠道仅做结构分析，不拆分明细行。',
+          '消课课时指统计区间内已完成上课并扣减会员课时余额的课时；待上课课时指已预约排课但尚未完成上课的课时。',
+          '待履约为截至统计区间结束日的课程余额快照，不等同于区间发生额。',
+          '退款分析按退款发生时间计入统计区间，可能对应历史售课订单，不冲减售课分析。',
         ]}
       />
     </div>
   );
+}
+
+type CourseSalesAnalysisRow = {
+  venue: Exclude<StoreId, 'all'>;
+  courseType: Exclude<CourseType, 'all'>;
+  courseName: string;
+  soldHours: number;
+  soldAmount: number;
+  orderCount: number;
+};
+
+type CourseConsumptionAnalysisRow = {
+  venue: Exclude<StoreId, 'all'>;
+  courseType: Exclude<CourseType, 'all'>;
+  courseName: string;
+  coach: Exclude<CoachId, 'all'>;
+  completedHours: number;
+  completedAmount: number;
+  studentCount: number;
+  pendingHours: number;
+};
+
+type CourseCoachAnalysisRow = {
+  venue: Exclude<StoreId, 'all'>;
+  coach: Exclude<CoachId, 'all'>;
+  completedHours: number;
+  completedAmount: number;
+  studentCount: number;
+  pendingHours: number;
+  cancelledHours: number;
+};
+
+type CourseRefundAnalysisRow = {
+  venue: Exclude<StoreId, 'all'>;
+  courseType: Exclude<CourseType, 'all'>;
+  courseName: string;
+  refundHours: number;
+  refundAmount: number;
+  refundCount: number;
+};
+
+function CourseSalesAnalysisPanel({ rows }: { rows: CourseSalesAnalysisRow[] }) {
+  const total = rows.reduce((acc, row) => ({ soldHours: acc.soldHours + row.soldHours, soldAmount: acc.soldAmount + row.soldAmount, orderCount: acc.orderCount + row.orderCount }), { soldHours: 0, soldAmount: 0, orderCount: 0 });
+  const sourceRows = buildCourseSalesSourceRows(total);
+  const typeRows = buildCourseSalesTypeRows(rows);
+
+  return (
+    <Panel title="售课分析" icon={TicketCheck}>
+      <div className="mb-3 grid gap-3 sm:grid-cols-3">
+        <MiniStat label="成交售课金额" value={money(total.soldAmount)} />
+        <MiniStat label="成交售课课时" value={String(total.soldHours) + '课时'} />
+        <MiniStat label="成交订单数" value={String(total.orderCount) + '单'} />
+      </div>
+      <div className="mb-3 grid gap-3 xl:grid-cols-2">
+        <CourseSalesDonut title="销售渠道" rows={sourceRows} totalAmount={total.soldAmount} />
+        <CourseSalesDonut title="课程类型" rows={typeRows} totalAmount={total.soldAmount} />
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[820px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="text-xs font-black text-slate-500">
+              <th className="border-b border-slate-100 px-3 py-3 text-left">门店</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-left">课程名称</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-left">课程类型</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">售课课时</th>
+              <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">售课金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">成交订单数</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.venue + row.courseName} className="font-bold text-slate-800">
+                <td className="border-b border-slate-100 px-3 py-3">{storeName(row.venue)}</td>
+                <td className="border-b border-slate-100 px-3 py-3">{row.courseName}</td>
+                <td className="border-b border-slate-100 px-3 py-3">{courseTypeDisplayName(row.courseType)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.soldHours}</td>
+                <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.soldAmount)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.orderCount}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-50 font-black text-slate-900">
+              <td className="border-b border-slate-100 px-3 py-3" colSpan={3}>合计</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.soldHours}</td>
+              <td className="border-b border-slate-100 bg-blue-50/60 px-3 py-3 text-right tabular-nums text-blue-700">{money(total.soldAmount)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.orderCount}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function CourseSalesDonut({ title, rows, totalAmount }: { title: string; rows: { key: string; amount: number; hours: number }[]; totalAmount: number }) {
+  const colors = ['#2563eb', '#0ea5e9', '#f59e0b', '#d946ef', '#22c55e', '#6366f1'];
+  const sum = rows.reduce((acc, row) => acc + row.amount, 0);
+  const radius = 46;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+      <div className="mb-2 text-sm font-black text-slate-800">{title}</div>
+      <div className="grid items-center gap-3 md:grid-cols-[150px_1fr]">
+        <div className="relative mx-auto h-36 w-36">
+          <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+            <circle cx="60" cy="60" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="16" />
+            {rows.map((row, index) => {
+              const length = sum > 0 ? (row.amount / sum) * circumference : 0;
+              const segmentOffset = offset;
+              offset += length;
+              return (
+                <circle
+                  key={row.key}
+                  cx="60"
+                  cy="60"
+                  r={radius}
+                  fill="none"
+                  stroke={colors[index % colors.length]}
+                  strokeWidth="16"
+                  strokeDasharray={String(length) + ' ' + String(circumference - length)}
+                  strokeDashoffset={-segmentOffset}
+                />
+              );
+            })}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <div className="text-xs font-bold text-slate-400">合计</div>
+            <div className="mt-0.5 text-base font-black tracking-normal text-slate-900">{money(sum)}</div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {rows.map((row, index) => {
+            const share = totalAmount > 0 ? ((row.amount / totalAmount) * 100).toFixed(1) + '%' : '0.0%';
+            return (
+              <div key={row.key} className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-black text-slate-700">{row.key}</div>
+                  <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-1 text-xs font-bold text-slate-500">
+                    <span className="tabular-nums text-slate-900">{money(row.amount)}</span>
+                    <span>{row.hours}课时</span>
+                    <span>占比 {share}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function buildCourseSalesSourceRows(total: { soldAmount: number; soldHours: number }) {
+  const sources = [
+    { key: '小程序', weight: 0.34 },
+    { key: '收银台', weight: 0.26 },
+    { key: '美团核销', weight: 0.22 },
+    { key: '抖音核销', weight: 0.18 },
+  ];
+  return distributeCourseSales(total, sources);
+}
+
+function buildCourseSalesTypeRows(rows: CourseSalesAnalysisRow[]) {
+  const grouped = new Map<string, { soldAmount: number; soldHours: number }>();
+  rows.forEach((row) => {
+    const key = courseTypeDisplayName(row.courseType);
+    const current = grouped.get(key) ?? { soldAmount: 0, soldHours: 0 };
+    current.soldAmount += row.soldAmount;
+    current.soldHours += row.soldHours;
+    grouped.set(key, current);
+  });
+  return Array.from(grouped.entries())
+    .map(([key, value]) => ({ key, amount: value.soldAmount, hours: value.soldHours }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+function distributeCourseSales(total: { soldAmount: number; soldHours: number }, rows: { key: string; weight: number }[]) {
+  let usedAmount = 0;
+  let usedHours = 0;
+  return rows.map((row, index) => {
+    const isLast = index === rows.length - 1;
+    const amount = isLast ? Math.max(total.soldAmount - usedAmount, 0) : Math.round(total.soldAmount * row.weight);
+    const hours = isLast ? Math.max(total.soldHours - usedHours, 0) : Math.round(total.soldHours * row.weight);
+    usedAmount += amount;
+    usedHours += hours;
+    return { key: row.key, amount, hours };
+  });
+}
+
+function CourseConsumptionAnalysisPanel({ totals, courseRows, coachRows }: { totals: CourseSummary; courseRows: CourseConsumptionAnalysisRow[]; coachRows: CourseCoachAnalysisRow[] }) {
+  const [tab, setTab] = useState<'course' | 'coach'>('course');
+  const studentRows = buildStudentFrequencyRows(totals);
+  const totalStudents = studentRows.reduce((sum, row) => sum + row.count, 0);
+
+  return (
+    <Panel title="消课分析" icon={BarChart3}>
+      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <MiniStat label="上课学员数" value={String(totalStudents) + '人'} />
+        <MiniStat label="消课课时" value={String(totals.completedHours) + '课时'} />
+        <MiniStat label="消课金额" value={money(totals.completedAmount)} />
+        <MiniStat label="待上课课时" value={String(totals.pendingHours) + '课时'} />
+        <MiniStat label="已取消课时" value={String(totals.cancelledHours) + '课时'} />
+      </div>
+      <div className="mb-3 flex rounded-md bg-slate-100 p-1">
+        {[
+          { id: 'course', name: '按课程分析' },
+          { id: 'coach', name: '按教练分析' },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setTab(item.id as 'course' | 'coach')}
+            className={cn('h-9 rounded px-4 text-sm font-black', tab === item.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800')}
+          >
+            {item.name}
+          </button>
+        ))}
+      </div>
+      {tab === 'course' ? <CourseConsumptionByCourseTable rows={courseRows} /> : <CourseConsumptionByCoachTable rows={coachRows} />}
+    </Panel>
+  );
+}
+
+function CourseConsumptionByCourseTable({ rows }: { rows: CourseConsumptionAnalysisRow[] }) {
+  const total = rows.reduce((acc, row) => ({ completedHours: acc.completedHours + row.completedHours, completedAmount: acc.completedAmount + row.completedAmount, studentCount: acc.studentCount + row.studentCount, pendingHours: acc.pendingHours + row.pendingHours }), { completedHours: 0, completedAmount: 0, studentCount: 0, pendingHours: 0 });
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[980px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">门店</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">课程名称</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">课程类型</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">上课教练</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">消课课时</th>
+            <th className="border-b border-slate-100 bg-emerald-50/50 px-3 py-3 text-right text-emerald-700">消课金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">上课学员数</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">待上课课时</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.venue + row.courseName + row.coach} className="font-bold text-slate-800">
+              <td className="border-b border-slate-100 px-3 py-3">{storeName(row.venue)}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{row.courseName}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{courseTypeDisplayName(row.courseType)}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{coachName(row.coach)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.completedHours}</td>
+              <td className="border-b border-slate-100 bg-emerald-50/40 px-3 py-3 text-right tabular-nums text-emerald-700">{money(row.completedAmount)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.studentCount}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.pendingHours}</td>
+            </tr>
+          ))}
+          <tr className="bg-slate-50 font-black text-slate-900">
+            <td className="border-b border-slate-100 px-3 py-3" colSpan={4}>合计</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.completedHours}</td>
+            <td className="border-b border-slate-100 bg-emerald-50/60 px-3 py-3 text-right tabular-nums text-emerald-700">{money(total.completedAmount)}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.studentCount}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.pendingHours}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CourseConsumptionByCoachTable({ rows }: { rows: CourseCoachAnalysisRow[] }) {
+  const total = rows.reduce((acc, row) => ({ completedHours: acc.completedHours + row.completedHours, completedAmount: acc.completedAmount + row.completedAmount, studentCount: acc.studentCount + row.studentCount, pendingHours: acc.pendingHours + row.pendingHours, cancelledHours: acc.cancelledHours + row.cancelledHours }), { completedHours: 0, completedAmount: 0, studentCount: 0, pendingHours: 0, cancelledHours: 0 });
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[860px] border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-xs font-black text-slate-500">
+            <th className="border-b border-slate-100 px-3 py-3 text-left">门店</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-left">教练</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">消课课时</th>
+            <th className="border-b border-slate-100 bg-emerald-50/50 px-3 py-3 text-right text-emerald-700">消课金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">上课学员数</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">待上课课时</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">已取消课时</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.venue + row.coach} className="font-bold text-slate-800">
+              <td className="border-b border-slate-100 px-3 py-3">{storeName(row.venue)}</td>
+              <td className="border-b border-slate-100 px-3 py-3">{coachName(row.coach)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.completedHours}</td>
+              <td className="border-b border-slate-100 bg-emerald-50/40 px-3 py-3 text-right tabular-nums text-emerald-700">{money(row.completedAmount)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.studentCount}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.pendingHours}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.cancelledHours}</td>
+            </tr>
+          ))}
+          <tr className="bg-slate-50 font-black text-slate-900">
+            <td className="border-b border-slate-100 px-3 py-3" colSpan={2}>合计</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.completedHours}</td>
+            <td className="border-b border-slate-100 bg-emerald-50/60 px-3 py-3 text-right tabular-nums text-emerald-700">{money(total.completedAmount)}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.studentCount}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.pendingHours}</td>
+            <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.cancelledHours}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CourseRefundAnalysisPanel({ rows }: { rows: CourseRefundAnalysisRow[] }) {
+  const total = rows.reduce((acc, row) => ({ refundHours: acc.refundHours + row.refundHours, refundAmount: acc.refundAmount + row.refundAmount, refundCount: acc.refundCount + row.refundCount }), { refundHours: 0, refundAmount: 0, refundCount: 0 });
+
+  return (
+    <Panel title="退款分析" icon={ReceiptText}>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[780px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="text-xs font-black text-slate-500">
+              <th className="border-b border-slate-100 px-3 py-3 text-left">门店</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-left">课程名称</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-left">课程类型</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">退款课时</th>
+              <th className="border-b border-slate-100 bg-rose-50/50 px-3 py-3 text-right text-rose-700">退款金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">退款笔数</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.venue + row.courseName} className="font-bold text-slate-800">
+                <td className="border-b border-slate-100 px-3 py-3">{storeName(row.venue)}</td>
+                <td className="border-b border-slate-100 px-3 py-3">{row.courseName}</td>
+                <td className="border-b border-slate-100 px-3 py-3">{courseTypeDisplayName(row.courseType)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.refundHours}</td>
+                <td className="border-b border-slate-100 bg-rose-50/40 px-3 py-3 text-right tabular-nums text-rose-700">{money(row.refundAmount)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.refundCount}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-50 font-black text-slate-900">
+              <td className="border-b border-slate-100 px-3 py-3" colSpan={3}>合计</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.refundHours}</td>
+              <td className="border-b border-slate-100 bg-rose-50/60 px-3 py-3 text-right tabular-nums text-rose-700">{money(total.refundAmount)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.refundCount}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function buildCourseSalesAnalysisRows(rows: CourseStat[]): CourseSalesAnalysisRow[] {
+  return rows.map((row) => ({
+    venue: row.venue,
+    courseType: row.courseType,
+    courseName: getCourseName(row),
+    soldHours: row.soldHours,
+    soldAmount: row.soldAmount,
+    orderCount: Math.max(Math.round(row.soldHours / 8), 1),
+  })).filter((row) => row.soldAmount > 0).sort((a, b) => storeName(a.venue).localeCompare(storeName(b.venue), 'zh-Hans') || b.soldAmount - a.soldAmount);
+}
+
+function buildCourseConsumptionRows(rows: CourseStat[]): CourseConsumptionAnalysisRow[] {
+  return rows.map((row) => ({
+    venue: row.venue,
+    courseType: row.courseType,
+    courseName: getCourseName(row),
+    coach: row.coach,
+    completedHours: row.completedHours,
+    completedAmount: row.completedAmount,
+    studentCount: Math.max(Math.round(row.frequency / 3), 1),
+    pendingHours: row.pendingHours,
+  })).filter((row) => row.completedAmount > 0 || row.completedHours > 0).sort((a, b) => storeName(a.venue).localeCompare(storeName(b.venue), 'zh-Hans') || b.completedAmount - a.completedAmount);
+}
+
+function buildCourseCoachRows(rows: CourseStat[]): CourseCoachAnalysisRow[] {
+  const grouped = new Map<string, CourseCoachAnalysisRow>();
+  rows.forEach((row) => {
+    const key = row.venue + '|' + row.coach;
+    const current = grouped.get(key) ?? { venue: row.venue, coach: row.coach, completedHours: 0, completedAmount: 0, studentCount: 0, pendingHours: 0, cancelledHours: 0 };
+    current.completedHours += row.completedHours;
+    current.completedAmount += row.completedAmount;
+    current.studentCount += Math.max(Math.round(row.frequency / 3), 1);
+    current.pendingHours += row.pendingHours;
+    current.cancelledHours += row.cancelledHours;
+    grouped.set(key, current);
+  });
+  return Array.from(grouped.values()).sort((a, b) => storeName(a.venue).localeCompare(storeName(b.venue), 'zh-Hans') || b.completedAmount - a.completedAmount);
+}
+
+function buildCourseRefundRows(rows: CourseStat[]): CourseRefundAnalysisRow[] {
+  return rows
+    .filter((row, index) => (index + row.soldHours + row.completedHours) % 3 === 0)
+    .map((row) => {
+      const refundHours = Math.max(Math.round(row.soldHours * 0.08), 1);
+      const unitPrice = row.soldHours > 0 ? row.soldAmount / row.soldHours : 0;
+      return {
+        venue: row.venue,
+        courseType: row.courseType,
+        courseName: getCourseName(row),
+        refundHours,
+        refundAmount: Math.round(refundHours * unitPrice),
+        refundCount: Math.max(Math.round(refundHours / 8), 1),
+      };
+    })
+    .filter((row) => row.refundAmount > 0)
+    .sort((a, b) => storeName(a.venue).localeCompare(storeName(b.venue), 'zh-Hans') || b.refundAmount - a.refundAmount);
+}
+
+function getCourseName(row: CourseStat) {
+  const names: Record<Exclude<CourseType, 'all'>, string[]> = {
+    private: ['1V1私教包月', '私教包季', '1V2私教包月'],
+    small: ['青少年小班课', '小班基础课', '小班提高课'],
+    group: ['成人团课', '周末团课', '暑期训练营'],
+  };
+  const index = Math.abs(row.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % names[row.courseType].length;
+  return names[row.courseType][index];
+}
+
+function storeName(store: Exclude<StoreId, 'all'>) {
+  return stores.find((item) => item.id === store)?.name ?? store;
+}
+
+function coachName(coach: Exclude<CoachId, 'all'>) {
+  return coachOptions.find((item) => item.id === coach)?.name ?? coach;
 }
 
 type CourseSummary = {
@@ -1618,9 +2117,7 @@ function CourseAssetOverview({ totals, range }: { totals: CourseSummary; range: 
         <CourseCoreMetric title={'截止' + periodName + '待履约金额'} value={money(pendingAmount)} helper={String(totals.remainingHours) + '课时'} tone="amber" />
       </div>
 
-      <div className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500">
-        口径说明：售课金额、消课金额为所选统计区间内发生额；待履约金额为截至统计区间结束日的已售未消耗课程余额。
-      </div>
+      
     </section>
   );
 }
@@ -1948,41 +2445,32 @@ function VenueBookingReport({
   period,
   store,
   customRange,
-  granularity,
   onPeriodChange,
   onCustomRangeChange,
   onStoreChange,
-  onGranularityChange,
   orders,
 }: {
   period: Period;
   store: StoreId;
   customRange: CustomDateRange;
-  granularity: TimeGranularity;
   onPeriodChange: (period: Period) => void;
   onCustomRangeChange: (range: CustomDateRange) => void;
   onStoreChange: (store: StoreId) => void;
-  onGranularityChange: (value: TimeGranularity) => void;
   orders: RevenueOrder[];
 }) {
   const venueOrders = useMemo(
-    () => orders.filter((order) => order.project === 'venue' && (order.source === 'miniProgram' || order.source === 'cashier')),
+    () => orders.filter((order) => order.project === 'venue'),
     [orders],
   );
   const totals = useMemo(() => summarizeVenueFinancial(venueOrders), [venueOrders]);
-  const baseSourceRows = useMemo(() => groupVenueFinancialBy(venueOrders, 'source').filter((row) => row.key === 'miniProgram' || row.key === 'cashier'), [venueOrders]);
+  const baseSourceRows = useMemo(() => groupVenueFinancialBy(venueOrders, 'source'), [venueOrders]);
   const [selectedSubVenue, setSelectedSubVenue] = useState<VenueSubVenue>('all');
   const selectedSubVenueTotal = useMemo(() => selectedSubVenue === 'all' ? totals : scaleVenueTotal(totals, getVenueSubVenueWeight(selectedSubVenue)), [selectedSubVenue, totals]);
   const sourceRows = useMemo(() => selectedSubVenue === 'all' ? baseSourceRows : scaleVenueRows(baseSourceRows, getVenueSubVenueWeight(selectedSubVenue)), [baseSourceRows, selectedSubVenue]);
   const courtRows = useMemo(() => buildCourtRows(totals), [totals]);
   const [analysisTab, setAnalysisTab] = useState<'time' | 'court'>('time');
   const [analysisVenue, setAnalysisVenue] = useState<VenueSubVenue>('badminton');
-  const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
-  const selectedCourtTotals = useMemo(() => {
-    const activeRows = selectedCourts.length === 0 ? courtRows : courtRows.filter((row) => selectedCourts.includes(row.key));
-    return mergeVenueTotals(activeRows.map((row) => row.total));
-  }, [courtRows, selectedCourts]);
-  const timeRows = useMemo(() => buildVenueTimeRows(selectedCourtTotals, granularity), [selectedCourtTotals, granularity]);
+  const timeRows = useMemo(() => buildVenueTimeRows(mergeVenueTotals(courtRows.map((row) => row.total)), 1), [courtRows]);
   const memberRows = useMemo(() => buildMemberRows(selectedSubVenueTotal), [selectedSubVenueTotal]);
   const bookingMethodRows = useMemo(() => buildBookingMethodRows(selectedSubVenueTotal), [selectedSubVenueTotal]);
   const sceneRows = useMemo(() => buildVenueSceneRows(selectedSubVenueTotal), [selectedSubVenueTotal]);
@@ -2004,9 +2492,9 @@ function VenueBookingReport({
           <FormulaOperator value="=" />
           <BillFormulaItem label="销售总额" value={money(selectedSubVenueTotal.sales)} note="平台已支付订场金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="平台退款金额" value={money(selectedSubVenueTotal.refund)} note="场地预订退款冲减金额" />
+          <BillFormulaItem label="退款金额" value={money(selectedSubVenueTotal.refund)} note="场地预订退款冲减金额" />
           <FormulaOperator value="-" />
-          <BillFormulaItem label="储值卡支付" value={money(selectedSubVenueTotal.storedBalance)} note="储值卡预收余额使用，不重复确认营收" />
+          <BillFormulaItem label="储值卡/余额支付" value={money(selectedSubVenueTotal.storedBalance)} note="预收余额使用，不重复确认收入" />
         </div>
       </section>
 
@@ -2032,16 +2520,24 @@ function VenueBookingReport({
           {analysisTab === 'time' ? (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-3">
-                <VenueAnalysisVenueSelect value={analysisVenue} onChange={(value) => { setAnalysisVenue(value); setSelectedCourts([]); }} />
-                <CourtMultiSelect rows={courtRows} selected={selectedCourts} onChange={setSelectedCourts} />
-                <GranularitySelect value={granularity} onChange={onGranularityChange} />
+                <VenueAnalysisVenueSelect value={analysisVenue} onChange={setAnalysisVenue} />
+                <button className="flex h-10 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-sm font-bold text-white">
+                  <Download size={15} />
+                  导出
+                </button>
               </div>
               <VenueLineChart rows={timeRows} />
               <TimeFinancialTable rows={timeRows} />
             </div>
           ) : (
             <div className="space-y-4">
-              <VenueAnalysisVenueSelect value={analysisVenue} onChange={(value) => { setAnalysisVenue(value); setSelectedCourts([]); }} />
+              <div className="flex flex-wrap items-center gap-3">
+                <VenueAnalysisVenueSelect value={analysisVenue} onChange={setAnalysisVenue} />
+                <button className="flex h-10 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-sm font-bold text-white">
+                  <Download size={15} />
+                  导出
+                </button>
+              </div>
               <CourtSalesTable rows={courtRows} />
             </div>
           )}
@@ -2050,8 +2546,9 @@ function VenueBookingReport({
 
       <KeyMetricNotes
         items={[
-          '场地预订营收金额 = 场地预订销售总额 - 退款金额 - 储值卡支付。',
-          '储值卡支付为储值卡预收余额使用，不重复确认营收。',
+          '场地预订营收金额 = 场地预订销售总额 - 退款金额 - 储值卡/余额支付。',
+          '场地预订报表按经营发生口径统计，如存在美团、抖音订场核销则计入场地预订营收。',
+          '储值卡/余额支付为预收余额使用，不重复确认收入。',
           '销售渠道、用户类型、订场方式均按场地预订营收金额拆分，合计金额一致。',
           '场景分布按场馆和订场场景展示，空值表示当前无该场景发生额。',
         ]}
@@ -2072,37 +2569,6 @@ function VenueAnalysisVenueSelect({ value, onChange }: { value: VenueSubVenue; o
       >
         {venueAnalysisVenueOptions.map((item) => (
           <option key={item.id} value={item.id}>{item.name}</option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function GranularitySelect({ value, onChange }: { value: TimeGranularity; onChange: (value: TimeGranularity) => void }) {
-  return (
-    <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
-      时间颗粒
-      <select value={value} onChange={(event) => onChange(Number(event.target.value) as TimeGranularity)} className="bg-transparent outline-none">
-        <option value={1}>1小时</option>
-        <option value={2}>2小时</option>
-        <option value={3}>3小时</option>
-      </select>
-    </label>
-  );
-}
-
-function CourtMultiSelect({ rows, selected, onChange }: { rows: CourtSalesRow[]; selected: string[]; onChange: (value: string[]) => void }) {
-  return (
-    <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
-      场地号
-      <select
-        value={selected[0] ?? 'all'}
-        onChange={(event) => onChange(event.target.value === 'all' ? [] : [event.target.value])}
-        className="min-w-36 bg-transparent outline-none"
-      >
-        <option value="all">全部场地</option>
-        {rows.map((row) => (
-          <option key={row.key} value={row.key}>{row.key}</option>
         ))}
       </select>
     </label>
@@ -2153,9 +2619,9 @@ function TimeFinancialTable({ rows }: { rows: { label: string; total: VenueFinan
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">时段</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡/余额支付</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">营收金额</th>
           </tr>
         </thead>
         <tbody>
@@ -2311,10 +2777,9 @@ function VenueFinancialTable({
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">{firstColumn}</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡/余额支付</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">营收金额</th>
             {showShare && <th className="border-b border-slate-100 px-3 py-3 text-right">占比</th>}
           </tr>
         </thead>
@@ -2328,8 +2793,7 @@ function VenueFinancialTable({
                 <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.refund)}</td>
                 <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>
                 <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
-                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.total.orders}</td>
-                {showShare && <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{share}</td>}
+                  {showShare && <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{share}</td>}
               </tr>
             );
           })}
@@ -2357,17 +2821,16 @@ type CourtSalesRow = {
 function CourtSalesTable({ rows }: { rows: CourtSalesRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
+      <table className="w-full min-w-[680px] border-separate border-spacing-0 text-sm">
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">场地号</th>
             <th className="border-b border-slate-100 px-3 py-3 text-left">场地类型</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡/余额支付</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">营收金额</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">预订时长</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
           </tr>
         </thead>
         <tbody>
@@ -2382,7 +2845,6 @@ function CourtSalesTable({ rows }: { rows: CourtSalesRow[] }) {
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>
               <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.hours}小时</td>
-              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.total.orders}</td>
             </tr>
           ))}
         </tbody>
@@ -2391,7 +2853,7 @@ function CourtSalesTable({ rows }: { rows: CourtSalesRow[] }) {
   );
 }
 
-function buildVenueTimeRows(total: ReturnType<typeof summarize>, granularity: TimeGranularity) {
+function buildVenueTimeRows(total: VenueFinancialTotal, granularity: TimeGranularity) {
   const weights = [0.04, 0.05, 0.06, 0.05, 0.07, 0.08, 0.07, 0.08, 0.1, 0.12, 0.12, 0.09, 0.04, 0.03];
   const hourly = distributeVenueFinancial(total, weights, 8);
   const rows = [];
@@ -2698,7 +3160,7 @@ function RecognitionIncomeDashboard({
         {'\u53e3\u5f84\u8bf4\u660e\uff1a\u6b21/\u65f6\u95f4\u5361\u3001\u79c1\u6559\u5361\u6309\u5361\u9879\u914d\u7f6e\u7684\u786e\u8ba4\u671f\u6570\u8fdb\u884c\u6708\u5ea6\u7ed3\u8f6c\uff1b\u50a8\u503c\u5361\u9500\u552e\u4f5c\u4e3a\u9884\u6536\u6b3e\uff0c\u4f1a\u5458\u4f7f\u7528\u50a8\u503c\u5361\u6d88\u8d39\u65f6\u6309\u5df2\u6d88\u8017\u91d1\u989d\u786e\u8ba4\u6536\u5165\uff1b\u5546\u54c1\u9500\u552e\u5728\u4ed8\u6b3e\u5f53\u6708\u786e\u8ba4\u6536\u5165\u3002'}
       </div>
 
-      <Panel title={'\u6536\u5165\u7c7b\u578b\u7edf\u8ba1'} icon={CreditCard} subtitle={'\u6708\u5ea6\u7ed3\u8f6c\u53e3\u5f84'}>
+      <Panel title={'\u6536\u5165\u7c7b\u578b\u7edf\u8ba1'} icon={CreditCard}>
         <RecognitionReportCategoryTable rows={categoryRows} total={metrics.currentRecognized} periodLabel={periodLabel} />
       </Panel>
 
@@ -2731,9 +3193,10 @@ function RecognitionIncomeDashboard({
       <KeyMetricNotes
         items={[
           '确认收入按卡项配置的确认期数进行结转。',
-          '储值卡销售作为预收款，会员实际消费时确认收入。',
+          '储值卡销售、余额充值作为预收款，会员实际消费时确认收入。',
           '商品销售在付款当期确认收入。',
           '筛选区间用于查看对应统计范围，确认收入仍遵循结转口径。',
+          '确认收入报表按经营发生口径覆盖平台订单及第三方团购核销形成的待履约权益。',
         ]}
       />
     </div>
@@ -3354,6 +3817,9 @@ function summarize(rows: RevenueOrder[]) {
       acc.discount += row.discount;
       acc.orders += row.orders;
 
+      acc.sales += row.paid;
+      acc.refund += row.refund ?? 0;
+
       if (isThirdPartyGroup) {
         acc.thirdPartyGroup += row.paid;
         if (row.payment === 'meituanGroup') acc.meituan += row.paid;
@@ -3361,8 +3827,6 @@ function summarize(rows: RevenueOrder[]) {
         return acc;
       }
 
-      acc.sales += row.paid;
-      acc.refund += row.refund ?? 0;
       if (row.payment === 'storedBalance') acc.storedBalance += row.paid;
       if (row.project === 'storedCard') acc.storedCardRevenue += row.paid;
       return acc;
@@ -3373,8 +3837,8 @@ function summarize(rows: RevenueOrder[]) {
   return {
     ...base,
     actualRevenue: base.sales - base.refund - base.storedBalance,
-    businessAmount: base.sales + base.thirdPartyGroup,
-    channelAmount: base.sales + base.thirdPartyGroup,
+    businessAmount: base.sales,
+    channelAmount: base.sales,
   };
 }
 
@@ -3785,9 +4249,9 @@ function RevenueTotalCard({
 
   return (
     <div className="rounded-lg border border-blue-500 bg-blue-600 p-4 text-white shadow-sm shadow-blue-200/60">
-      <div className="text-xs font-bold text-white/70">平台营收金额</div>
+      <div className="text-xs font-bold text-white/70">经营营收金额</div>
       <div className="mt-1.5 text-4xl font-black tracking-normal">{money(total)}</div>
-      <div className="mt-2 text-[11px] font-semibold text-white/65">平台销售总额 - 平台退款金额 - 储值卡支付</div>
+      <div className="mt-2 text-[11px] font-semibold text-white/65">销售总额 - 退款金额 - 储值卡/余额支付</div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {items.map((item) => (
           <div key={item.label} className="rounded-md bg-white/10 px-2.5 py-2.5">
@@ -3810,18 +4274,18 @@ function SalesBreakdownCards({ sales, storedBalance, actualRevenue, refund }: {
     <div className="flex h-full flex-col rounded-lg border border-slate-100 bg-white p-3.5 shadow-sm shadow-slate-200/40">
       <div className="grid flex-1 grid-cols-2 gap-2">
         <div className="rounded-lg bg-slate-50 p-4">
-          <div className="text-xs font-bold text-slate-500">平台销售总额</div>
+          <div className="text-xs font-bold text-slate-500">销售总额</div>
           <div className="mt-2 text-3xl font-black tracking-normal text-slate-800">{money(sales)}</div>
-          <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">含储值卡支付</div>
+          <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">含储值卡/余额支付</div>
         </div>
         <div className="rounded-lg bg-slate-50 p-4">
-          <div className="text-xs font-bold text-slate-500">储值卡支付</div>
+          <div className="text-xs font-bold text-slate-500">储值卡/余额支付</div>
           <div className="mt-2 text-3xl font-black tracking-normal text-slate-800">{money(storedBalance)}</div>
           <div className="mt-2 text-[11px] font-semibold leading-5 text-slate-500">用于扣减营收</div>
         </div>
       </div>
       <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-bold text-blue-700">
-        平台销售总额 {money(sales)} - 平台退款金额 {money(refund)} - 储值卡支付 {money(storedBalance)} = 平台营收金额 {money(actualRevenue)}
+        销售总额 {money(sales)} - 退款金额 {money(refund)} - 储值卡/余额支付 {money(storedBalance)} = 经营营收金额 {money(actualRevenue)}
       </div>
     </div>
   );
@@ -3901,7 +4365,7 @@ function ProjectSummary({
               <div className="mt-1 text-[11px] font-bold text-slate-400">经营发生额</div>
               <div className="mt-2 grid grid-cols-2 gap-1 text-[10px] font-semibold">
                 <div className="min-w-0 rounded bg-white/70 px-1.5 py-1">
-                  <div className="truncate text-slate-400">平台销售额</div>
+                  <div className="truncate text-slate-400">销售额</div>
                   <div className="mt-0.5 truncate text-slate-600">{money(row.total.sales)}</div>
                 </div>
                 <div className="min-w-0 rounded bg-white/70 px-1.5 py-1">
@@ -3939,7 +4403,7 @@ function ProjectDetailStats({ project, total, dashboard }: { project: Project; t
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="text-sm font-black text-slate-800">{meta.name}明细统计</div>
-          <div className="mt-1 text-xs font-bold text-slate-500">点击项目卡片切换明细，主要统计口径为经营发生额，平台营收与第三方团购核销分列展示。</div>
+          <div className="mt-1 text-xs font-bold text-slate-500">点击项目卡片切换明细，主要统计口径为经营发生额，经营营收与第三方团购核销分列展示。</div>
         </div>
         <div className="flex items-center gap-2">
           <button className="flex h-9 items-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-bold text-white">
@@ -3953,10 +4417,10 @@ function ProjectDetailStats({ project, total, dashboard }: { project: Project; t
           <thead>
             <tr className="text-xs font-black text-slate-500">
               <th className="border-b border-slate-100 px-3 py-3 text-left">明细项目</th>
-              {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">平台销售额</th>}
+              {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">销售额</th>}
               {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-amber-700">第三方团购核销额</th>}
               {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-slate-800">经营发生额</th>}
-              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">平台营收金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">经营营收金额</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
             </tr>
           </thead>
@@ -4031,10 +4495,10 @@ function DataTable({ rows, type, total, dashboard }: { rows: { key: string; tota
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="w-[210px] border-b border-slate-100 py-3 pr-2">{tableTitle(type)}</th>
-            {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right text-blue-700">平台销售额</th>}
+            {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right text-blue-700">销售额</th>}
             {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right text-amber-700">第三方团购核销额</th>}
             <th className="border-b border-slate-100 px-2 py-3 text-right text-slate-800">经营发生额</th>
-            <th className="border-b border-slate-100 px-2 py-3 text-right text-indigo-700">平台营收金额</th>
+            <th className="border-b border-slate-100 px-2 py-3 text-right text-indigo-700">经营营收金额</th>
             <th className="border-b border-slate-100 py-3 pl-2 text-right">订单数</th>
           </tr>
         </thead>
@@ -4061,7 +4525,7 @@ function DataTable({ rows, type, total, dashboard }: { rows: { key: string; tota
 
 function RowName({ rowKey, type, compact }: { rowKey: string; type: Tab | 'project' | 'sport' | 'source' | 'payment'; compact?: boolean }) {
   if (type === 'project') {
-    const item = projectMeta[rowKey as Project];
+    const item = projectBreakdownMeta[rowKey] ?? projectMeta[rowKey as Project];
     const Icon = item.icon;
     return (
       <div className="flex min-w-0 items-center gap-2">
