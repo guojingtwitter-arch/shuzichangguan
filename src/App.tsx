@@ -852,6 +852,8 @@ function SimpleRevenueDashboard({
 
       <RevenueBreakdownTable title={revenueBreakdownTitle} rows={revenueBreakdownRows} type={revenueBreakdownType} total={totals.actualRevenue} />
 
+      <RevenueSalesItemStatsPanel orders={platformOrders} />
+
       <SettlementReconciliationPanel orders={orders} />
 
       <KeyMetricNotes
@@ -923,6 +925,158 @@ function SummaryMiniStat({ label, value, tone }: { label: string; value: string;
   );
 }
 
+type RevenueSalesItemRow = {
+  store: Exclude<StoreId, 'all'>;
+  project: Project;
+  itemName: string;
+  sales: number;
+  refund: number;
+  storedBalance: number;
+  actualRevenue: number;
+};
+
+function RevenueSalesItemStatsPanel({ orders }: { orders: RevenueOrder[] }) {
+  const [projectFilter, setProjectFilter] = useState<Project | 'all'>('all');
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+
+  const filteredOrders = useMemo(
+    () => orders.filter((order) => projectFilter === 'all' || order.project === projectFilter),
+    [orders, projectFilter],
+  );
+  const rows = useMemo(() => buildRevenueSalesItemRows(filteredOrders), [filteredOrders]);
+  const total = useMemo(() => summarizeSalesItemRows(rows), [rows]);
+  const totalPages = Math.max(Math.ceil(rows.length / pageSize), 1);
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  return (
+    <section className="rounded-lg border border-slate-100 bg-white shadow-sm shadow-slate-200/30">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <div className="flex items-center gap-2 text-lg font-black text-slate-800">
+          <ReceiptText size={17} />
+          销售品项统计
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600">
+            销售项目
+            <select value={projectFilter} onChange={(event) => { setProjectFilter(event.target.value as Project | 'all'); setPage(1); }} className="bg-transparent text-sm text-slate-800 outline-none">
+              <option value="all">全部</option>
+              {(Object.keys(projectMeta) as Project[]).map((project) => (
+                <option key={project} value={project}>{projectMeta[project].short}</option>
+              ))}
+            </select>
+          </label>
+          <button className="flex h-9 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-sm font-bold text-white">
+            <Download size={15} />
+            导出
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="bg-slate-50 text-xs font-black text-slate-500">
+              <th className="border-b border-slate-100 px-4 py-3 text-left">门店</th>
+              <th className="border-b border-slate-100 px-4 py-3 text-left">销售项目</th>
+              <th className="border-b border-slate-100 px-4 py-3 text-left">销售品项</th>
+              <th className="border-b border-slate-100 px-4 py-3 text-right">平台销售总额</th>
+              <th className="border-b border-slate-100 px-4 py-3 text-right">平台退款金额</th>
+              <th className="border-b border-slate-100 px-4 py-3 text-right">储值卡支付</th>
+              <th className="border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-right text-blue-700">平台营收金额</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pageRows.map((row) => (
+              <tr key={row.store + row.project + row.itemName} className="font-bold text-slate-800">
+                <td className="border-b border-slate-100 px-4 py-3">{stores.find((item) => item.id === row.store)?.name ?? row.store}</td>
+                <td className="border-b border-slate-100 px-4 py-3">{projectMeta[row.project].name}</td>
+                <td className="border-b border-slate-100 px-4 py-3">{row.itemName}</td>
+                <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.sales)}</td>
+                <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.refund)}</td>
+                <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.storedBalance)}</td>
+                <td className="border-b border-slate-100 bg-blue-50/40 px-4 py-3 text-right font-black tabular-nums text-blue-700">{money(row.actualRevenue)}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-50 text-sm font-black text-slate-900">
+              <td className="border-t border-slate-200 px-4 py-3" colSpan={3}>合计</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums">{money(total.sales)}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums">{money(total.refund)}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums">{money(total.storedBalance)}</td>
+              <td className="border-t border-slate-200 bg-blue-50/60 px-4 py-3 text-right tabular-nums text-blue-700">{money(total.actualRevenue)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs font-semibold text-slate-500">
+        <span>共 {rows.length} 条，当前第 {currentPage} / {totalPages} 页</span>
+        <div className="flex gap-2">
+          <button disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(value - 1, 1))} className="h-8 rounded-md border border-slate-200 px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">上一页</button>
+          <button disabled={currentPage === totalPages} onClick={() => setPage((value) => Math.min(value + 1, totalPages))} className="h-8 rounded-md border border-slate-200 px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">下一页</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function buildRevenueSalesItemRows(orders: RevenueOrder[]): RevenueSalesItemRow[] {
+  const grouped = new Map<string, RevenueSalesItemRow>();
+
+  orders.forEach((order) => {
+    const itemName = getRevenueSalesItemName(order);
+    const key = [order.store, order.project, itemName].join('|');
+    const current = grouped.get(key) ?? {
+      store: order.store,
+      project: order.project,
+      itemName,
+      sales: 0,
+      refund: 0,
+      storedBalance: 0,
+      actualRevenue: 0,
+    };
+    const refund = order.refund ?? 0;
+    const storedBalance = order.payment === 'storedBalance' ? order.paid : 0;
+    current.sales += order.paid;
+    current.refund += refund;
+    current.storedBalance += storedBalance;
+    current.actualRevenue += order.paid - refund - storedBalance;
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).filter((row) => row.sales > 0).sort((a, b) => {
+    const storeCompare = (stores.findIndex((item) => item.id === a.store) - stores.findIndex((item) => item.id === b.store));
+    if (storeCompare !== 0) return storeCompare;
+    if (a.project !== b.project) return projectMeta[a.project].name.localeCompare(projectMeta[b.project].name, 'zh-Hans');
+    return b.actualRevenue - a.actualRevenue;
+  });
+}
+
+function summarizeSalesItemRows(rows: RevenueSalesItemRow[]) {
+  return rows.reduce(
+    (acc, row) => ({
+      sales: acc.sales + row.sales,
+      refund: acc.refund + row.refund,
+      storedBalance: acc.storedBalance + row.storedBalance,
+      actualRevenue: acc.actualRevenue + row.actualRevenue,
+    }),
+    { sales: 0, refund: 0, storedBalance: 0, actualRevenue: 0 },
+  );
+}
+
+function getRevenueSalesItemName(order: RevenueOrder) {
+  const itemNames: Record<Project, string[]> = {
+    venue: ['羽毛球馆订场', '篮球馆订场'],
+    storedCard: ['储值卡 1000 元档', '储值卡 3000 元档', '储值卡 5000 元档'],
+    courseCard: ['少儿羽毛球 10 课时', '成人私教 8 课时', '篮球基础班 12 课时'],
+    passCard: ['自助训练月卡', '自助训练季卡', '羽毛球 10 次卡'],
+    goods: ['运动饮料', '球拍租赁', '羽毛球耗材'],
+  };
+  const index = Math.abs(order.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % itemNames[order.project].length;
+  return itemNames[order.project][index];
+}
+
 function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
   const [activeTab, setActiveTab] = useState<'collection' | 'account'>('collection');
   const totals = summarize(orders);
@@ -970,7 +1124,7 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
   const accountRows = buildPlatformAccountRows(orders);
 
   return (
-    <Panel title="收款归集与对账" icon={Wallet} action="按收款去向拆解">
+    <Panel title="收款归集与对账" icon={Wallet}>
       <div className="mb-3 inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
         {[
           { key: 'collection', label: '收款归集' },
@@ -1137,7 +1291,7 @@ function RevenueBreakdownTable({ title, rows, type, total }: {
   const tableTotal = summarizeTotals(rows.map((row) => row.total));
 
   return (
-    <Panel title={title} icon={type === 'source' || type === 'sport' ? Store : BarChart3} action="字段口径与平台营收概览一致">
+    <Panel title={title} icon={type === 'source' || type === 'sport' ? Store : BarChart3}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
           <thead>
