@@ -114,7 +114,7 @@ const sourceMeta: Record<Source, { name: string; tag?: string; color: string }> 
 
 const paymentMeta: Record<Payment, { name: string; settlement: 'platform' | 'merchant' | 'thirdParty' | 'nonCash'; note: string; icon: typeof Wallet }> = {
   wechat: { name: '小程序收款', settlement: 'platform', note: '可在商户后台核对入账', icon: Wallet },
-  payCode: { name: '收银台收款（商户扫码+用户扫码）', settlement: 'platform', note: '可在商户后台核对入账', icon: ReceiptText },
+  payCode: { name: '收银台下单（商户扫码+用户扫码）', settlement: 'platform', note: '可在商户后台核对入账', icon: ReceiptText },
   storedBalance: { name: '储值卡/余额支付', settlement: 'nonCash', note: '预收余额使用，不重复确认收入', icon: CreditCard },
   offline: { name: '线下付款', settlement: 'merchant', note: '使用收银台登记订单，资金由商户自行核对', icon: Store },
   corporate: { name: '对公转账', settlement: 'merchant', note: '使用收银台登记订单，资金由商户自行核对', icon: Landmark },
@@ -431,7 +431,7 @@ function MobileRevenueReport({ orders }: { orders: RevenueOrder[] }) {
   return (
     <div className="space-y-3">
       <MobileMetricGrid>
-        <MobileMetric title="经营营收金额" value={money(totals.actualRevenue)} tone="blue" />
+        <MobileMetric title="平台营收金额" value={money(totals.actualRevenue)} tone="blue" />
         <MobileMetric title="销售总额" value={money(totals.sales)} />
         <MobileMetric title="退款金额" value={money(totals.refund)} />
         <MobileMetric title="储值卡/余额支付" value={money(totals.storedBalance)} />
@@ -446,7 +446,7 @@ function MobileRevenueReport({ orders }: { orders: RevenueOrder[] }) {
       <MobileListCard title="销售渠道">
         {sourceRows.map((row, index) => (
           <div key={row.key}>
-            <MobileAmountRow rank={index + 1} label={sourceMeta[row.key as Source].name} value={row.total.actualRevenue} total={totals.actualRevenue} note={row.key === 'cashier' ? '含商户扫码、线下付款、对公转账' : undefined} />
+            <MobileAmountRow rank={index + 1} label={sourceMeta[row.key as Source].name} value={row.total.actualRevenue} total={totals.actualRevenue} note={row.key === 'cashier' ? '含商户扫码、用户扫码、线下付款、对公转账' : undefined} />
           </div>
         ))}
       </MobileListCard>
@@ -701,14 +701,14 @@ function DesktopDashboard() {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，仅统计支付成功 / 核销完成订单，不含撤单、作废订单。</div>
             <div className="rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-              经营营收金额 = 销售总额 - 退款金额 - 储值卡/余额支付；美团、抖音等第三方团购核销计入经营发生口径。
+              平台营收金额 = 销售总额 - 退款金额 - 储值卡/余额支付；美团、抖音等第三方团购核销计入经营发生口径。
             </div>
           </div>
 
           <section className={cn('mt-4 grid gap-2.5', dashboard === 'fitness' ? 'md:grid-cols-2 xl:grid-cols-5' : 'xl:grid-cols-[1.4fr_1fr]')}>
             {dashboard === 'fitness' ? (
               <>
-                <MetricCard title="经营营收金额" value={money(totals.actualRevenue)} helper="经营发生口径" />
+                <MetricCard title="平台营收金额" value={money(totals.actualRevenue)} helper="经营发生口径" />
                 <MetricCard title="小程序平台收款" value={money(miniProgramRevenue)} helper="小程序平台收款" />
                 <MetricCard title="收银台平台收款" value={money(cashierRevenue)} helper="收银台平台收款" />
                 <MetricCard title="美团核销" value={money(totals.meituan)} helper="第三方团购核销" />
@@ -795,49 +795,79 @@ function SimpleRevenueDashboard({
   onStoreChange: (store: StoreId) => void;
   orders: RevenueOrder[];
 }) {
-  const totals = useMemo(() => summarize(orders), [orders]);
-  const operatingOrders = orders;
-  const projectRows = useMemo(() => splitStoredCardProjectRows(orderProjectRows(groupBy(operatingOrders, 'project')).sort((a, b) => b.total.actualRevenue - a.total.actualRevenue)), [operatingOrders]);
-  const sourceRows = useMemo(() => groupBy(operatingOrders, 'source').sort((a, b) => b.total.actualRevenue - a.total.actualRevenue), [operatingOrders]);
+  const platformRevenueOrders = useMemo(() => orders.filter(isPlatformRevenueOrder), [orders]);
+  const platformTotals = useMemo(() => summarize(platformRevenueOrders), [platformRevenueOrders]);
+  const storedValueMetrics = useMemo(() => summarizeStoredValueFlow(orders), [orders]);
+  const thirdPartyMetrics = useMemo(() => summarizeThirdPartyVoucher(orders), [orders]);
+  const compositionOrders = useMemo(() => orders.filter((order) => order.project !== 'storedCard'), [orders]);
+  const projectRows = useMemo(() => orderProjectRows(groupByRevenueComposition(compositionOrders, 'project')), [compositionOrders]);
+  const sourceRows = useMemo(() => groupByRevenueComposition(compositionOrders, 'source'), [compositionOrders]);
   const activePeriod = getActivePeriod(period, customRange);
-  const [revenueBreakdownTab, setRevenueBreakdownTab] = useState<'salesProject' | 'salesChannel'>('salesProject');
+  const prepaidRows = useMemo(() => buildRevenuePrepaidRows(orders), [orders]);
+  const [revenueBreakdownTab, setRevenueBreakdownTab] = useState<'salesProject' | 'salesChannel' | 'prepaid'>('salesProject');
   const revenueBreakdownRows = revenueBreakdownTab === 'salesProject' ? projectRows : sourceRows;
   const revenueBreakdownType = revenueBreakdownTab === 'salesProject' ? 'project' : 'source';
   const revenueBreakdownTitle = revenueBreakdownTab === 'salesProject' ? '销售项目构成' : '销售渠道构成';
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
           <Segmented value={period} customRange={customRange} onChange={onPeriodChange} onCustomRangeChange={onCustomRangeChange} />
-          <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
+          <div className="mt-1.5 text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}</div>
         </div>
+        <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
       </div>
 
-      <SectionIntro title="经营营收概览" />
+      <SectionIntro title="营收概况" />
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
-          <BillFormulaItem label="经营营收金额" value={money(totals.actualRevenue)} primary />
-          <FormulaOperator value="=" />
-          <BillFormulaItem label="销售总额" value={money(totals.sales)} note="已支付订单金额" />
-          <FormulaOperator value="-" />
-          <BillFormulaItem label="退款金额" value={money(totals.refund)} note="退款冲减金额" />
-          <FormulaOperator value="-" />
-          <BillFormulaItem label="储值卡/余额支付" value={money(totals.storedBalance)} note="预收余额使用，不重复确认收入" />
-        </div>
+      <section className="grid gap-4 xl:grid-cols-3">
+        <RevenueOverviewPanel
+          title="平台营收"
+          icon={Wallet}
+          tone="blue"
+          primaryLabel="平台营收金额"
+          primaryValue={platformTotals.actualRevenue}
+          items={[
+            { label: '平台销售额', value: platformTotals.sales },
+            { label: '平台退款额', value: platformTotals.refund },
+          ]}
+          helper="仅统计小程序、收银台支付成功订单，不含储值卡/余额支付和第三方团购核销。"
+        />
+        <RevenueOverviewPanel
+          title="储值卡/余额收支"
+          icon={CreditCard}
+          tone="emerald"
+          primaryLabel="期末储值卡/余额"
+          primaryValue={storedValueMetrics.balance}
+          items={[
+            { label: '售卡/余额充值', value: storedValueMetrics.sales },
+            { label: '储值卡/余额消耗', value: storedValueMetrics.consumed },
+          ]}
+          helper="储值卡/余额属于预收款，消耗时不重复计入平台营收。"
+        />
+        <RevenueOverviewPanel
+          title="第三方团购核销"
+          icon={TicketCheck}
+          tone="amber"
+          primaryLabel="团购核销金额"
+          primaryValue={thirdPartyMetrics.total}
+          items={[
+            { label: '美团核销', value: thirdPartyMetrics.meituan },
+            { label: '抖音核销', value: thirdPartyMetrics.douyin },
+          ]}
+          helper="仅统计平台核销兑换金额；补贴券、商家券、退款需到第三方平台核对。"
+        />
       </section>
 
-      <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-800">
-        统计区间：{activePeriod.range}，经营营收金额按经营发生口径统计，包含小程序、收银台、美团核销、抖音核销。
-      </div>
 
-      <SectionIntro title="经营营收构成" />
+      <SectionIntro title="经营构成分析" />
 
       <div className="flex flex-wrap gap-2">
         {[
           { id: 'salesProject', name: '销售项目' },
           { id: 'salesChannel', name: '销售渠道' },
+          { id: 'prepaid', name: '预收款' },
         ].map((item) => (
           <button
             key={item.id}
@@ -849,24 +879,91 @@ function SimpleRevenueDashboard({
         ))}
       </div>
 
-      <RevenueBreakdownTable title={revenueBreakdownTitle} rows={revenueBreakdownRows} type={revenueBreakdownType} total={totals.actualRevenue} />
+      {revenueBreakdownTab === 'prepaid' ? (
+        <RevenuePrepaidSummaryTable rows={prepaidRows} />
+      ) : (
+        <RevenueBreakdownTable title={revenueBreakdownTitle} rows={revenueBreakdownRows} type={revenueBreakdownType} total={summarizeRevenueComposition(compositionOrders).businessAmount} />
+      )}
 
-      <RevenueSalesItemStatsPanel orders={operatingOrders} />
+      <SectionIntro title="品项明细统计" />
+
+      <RevenueSalesItemStatsPanel orders={orders} />
 
       <SettlementReconciliationPanel orders={orders} />
 
       <KeyMetricNotes
         items={[
-          '经营营收金额 = 销售总额 - 退款金额 - 储值卡/余额支付。',
-          '经营营收金额按经营发生口径统计，包含小程序、收银台、美团核销、抖音核销。',
-          '美团、抖音核销计入经营营收金额，资金需到对应第三方平台核对。',
-          '收款归集按资金入账去向展示，平台收款未扣除支付手续费。',
-          '账户对账仅统计平台收款；同一场馆同一账户合并展示渠道，不同场馆即使共用账户也按场馆拆分；金额已扣退款，未扣支付手续费。',
+          '平台营收金额 = 平台销售额 - 平台退款额；平台销售额不含储值卡销售、余额充值、储值卡/余额支付和第三方团购核销。',
+          '销售项目、销售渠道统计业务消费和核销发生；经营发生额 = 平台营收金额 + 储值卡/余额支付 + 第三方团购核销。',
+          '预收款 TAB 单独统计储值卡销售和余额充值的新售卡/充值金额、退款金额和净收款金额。',
+          '第三方团购核销仅统计平台核销兑换金额；补贴券、商家券、退款需到美团/抖音平台核对。',
+          '收款归集按资金入账去向展示，平台收款和商户自行收款按实际收款扣退款统计，第三方团购按核销金额统计。',
+          '账户对账仅统计平台收款，包含业务消费收款及储值卡销售、余额充值收款；同一场馆同一账户合并展示渠道，不同场馆即使共用账户也按场馆拆分；金额已扣退款，未扣支付手续费。',
         ]}
       />
 
     </div>
   );
+}
+
+type RevenueOverviewPanelProps = {
+  title: string;
+  icon: typeof Store;
+  tone: 'blue' | 'emerald' | 'amber';
+  primaryLabel: string;
+  primaryValue: number;
+  items: { label: string; value: number }[];
+  helper: string;
+};
+
+function RevenueOverviewPanel({ title, icon: Icon, tone, primaryLabel, primaryValue, items, helper }: RevenueOverviewPanelProps) {
+  const toneClass = tone === 'blue'
+    ? 'border-blue-100 bg-blue-50/70 text-blue-800'
+    : tone === 'emerald'
+      ? 'border-emerald-100 bg-emerald-50/70 text-emerald-800'
+      : 'border-amber-100 bg-amber-50/80 text-amber-800';
+
+  return (
+    <section className={cn('rounded-xl border p-4 shadow-sm shadow-slate-200/40', toneClass)}>
+      <div className="flex items-center gap-2 text-sm font-black">
+        <Icon size={17} />
+        {title}
+      </div>
+      <div className="mt-3 rounded-lg bg-white/70 px-3 py-3">
+        <div className="text-xs font-bold opacity-70">{primaryLabel}</div>
+        <div className="mt-1.5 text-3xl font-black tracking-normal">{money(primaryValue)}</div>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-md bg-white/60 px-3 py-2">
+            <div className="text-[11px] font-bold opacity-65">{item.label}</div>
+            <div className="mt-1 text-base font-black tabular-nums">{money(item.value)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 text-[11px] font-semibold leading-5 opacity-75">{helper}</div>
+    </section>
+  );
+}
+
+function isPlatformRevenueOrder(order: RevenueOrder) {
+  if (order.payment === 'meituanGroup' || order.payment === 'douyinGroup') return false;
+  if (order.payment === 'storedBalance' || order.payment === 'free') return false;
+  if (order.project === 'storedCard') return false;
+  return order.source === 'miniProgram' || order.source === 'cashier';
+}
+
+function summarizeStoredValueFlow(orders: RevenueOrder[]) {
+  const sales = orders.filter((order) => order.project === 'storedCard').reduce((sum, order) => sum + order.paid, 0);
+  const consumed = orders.filter((order) => order.payment === 'storedBalance').reduce((sum, order) => sum + order.paid, 0);
+  const balance = Math.max(Math.round(sales * 3.2 - consumed), 0);
+  return { sales, consumed, balance };
+}
+
+function summarizeThirdPartyVoucher(orders: RevenueOrder[]) {
+  const meituan = orders.filter((order) => order.payment === 'meituanGroup').reduce((sum, order) => sum + order.paid, 0);
+  const douyin = orders.filter((order) => order.payment === 'douyinGroup').reduce((sum, order) => sum + order.paid, 0);
+  return { meituan, douyin, total: meituan + douyin };
 }
 
 function SectionIntro({ title, description }: { title: string; description?: string }) {
@@ -897,7 +994,7 @@ function KeyMetricNotes({ items }: { items: string[] }) {
   );
 }
 
-function BillFormulaItem({ label, value, note, primary }: { label: string; value: string; note?: string; primary?: boolean }) {
+function BillFormulaItem({ label, value, note, primary, details }: { label: string; value: string; note?: string; primary?: boolean; details?: { label: string; value: string }[] }) {
   return (
     <div className={cn('min-w-0 border-slate-100 xl:border-r xl:pr-6', primary && 'xl:pr-8')}>
       <div className="flex items-center gap-1.5 text-sm font-black text-slate-600">
@@ -905,12 +1002,22 @@ function BillFormulaItem({ label, value, note, primary }: { label: string; value
         {!primary && <CircleDollarSign size={15} className="text-slate-400" />}
       </div>
       <div className={cn('mt-3 font-black tracking-normal text-slate-900', primary ? 'text-4xl' : 'text-3xl')}>{value}</div>
+      {details && (
+        <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+          {details.map((item) => (
+            <div key={item.label} className="rounded bg-slate-50 px-2 py-1.5 text-xs font-bold">
+              <div className="truncate text-slate-400">{item.label}</div>
+              <div className="mt-0.5 truncate tabular-nums text-slate-800">{item.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
       {note && <div className="mt-2 text-xs font-semibold leading-5 text-slate-500">{note}</div>}
     </div>
   );
 }
 
-function FormulaOperator({ value }: { value: '=' | '-' }) {
+function FormulaOperator({ value }: { value: '=' | '-' | '+' }) {
   return (
     <div className="hidden text-2xl font-black text-slate-900 xl:block">{value}</div>
   );
@@ -932,42 +1039,69 @@ type RevenueSalesItemRow = {
   itemName: string;
   sales: number;
   refund: number;
-  storedBalance: number;
   actualRevenue: number;
+  storedBalance: number;
+  thirdPartyGroup: number;
+  businessAmount: number;
+};
+
+type RevenuePrepaidRow = {
+  key: 'storedCard' | 'balanceRecharge';
+  sales: number;
+  refund: number;
+  netAmount: number;
+  orders: number;
+};
+
+type RevenuePrepaidItemRow = RevenuePrepaidRow & {
+  store: Exclude<StoreId, 'all'>;
+  source: Source;
+  itemName: string;
 };
 
 function RevenueSalesItemStatsPanel({ orders }: { orders: RevenueOrder[] }) {
-  const [projectFilter, setProjectFilter] = useState<Project | 'all'>('all');
+  const [itemTab, setItemTab] = useState<'business' | 'prepaid'>('business');
   const [page, setPage] = useState(1);
   const pageSize = 8;
+  const businessOrders = useMemo(() => orders.filter((order) => order.project !== 'storedCard'), [orders]);
+  const prepaidOrders = useMemo(() => orders.filter((order) => order.project === 'storedCard'), [orders]);
 
-  const filteredOrders = useMemo(
-    () => orders.filter((order) => projectFilter === 'all' || order.project === projectFilter),
-    [orders, projectFilter],
-  );
-  const rows = useMemo(() => buildRevenueSalesItemRows(filteredOrders), [filteredOrders]);
+  const rows = useMemo(() => buildRevenueSalesItemRows(businessOrders), [businessOrders]);
+  const prepaidRows = useMemo(() => buildRevenuePrepaidItemRows(prepaidOrders), [prepaidOrders]);
+  const visibleRows = itemTab === 'business' ? rows : [];
+  const visiblePrepaidRows = itemTab === 'prepaid' ? prepaidRows : [];
   const total = useMemo(() => summarizeSalesItemRows(rows), [rows]);
-  const totalPages = Math.max(Math.ceil(rows.length / pageSize), 1);
+  const prepaidTotal = useMemo(() => summarizePrepaidRows(prepaidRows), [prepaidRows]);
+  const rowCount = itemTab === 'business' ? visibleRows.length : visiblePrepaidRows.length;
+  const totalPages = Math.max(Math.ceil(rowCount / pageSize), 1);
   const currentPage = Math.min(page, totalPages);
-  const pageRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageRows = visibleRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagePrepaidRows = visiblePrepaidRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <section className="rounded-lg border border-slate-100 bg-white shadow-sm shadow-slate-200/30">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-        <div className="flex items-center gap-2 text-lg font-black text-slate-800">
-          <ReceiptText size={17} />
-          销售品项统计
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 text-lg font-black text-slate-800">
+            <ReceiptText size={17} />
+          </div>
+          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+            {[
+              { id: 'business', name: '业务消费品项' },
+              { id: 'prepaid', name: '预收款品项' },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => { setItemTab(item.id as typeof itemTab); setPage(1); }}
+                className={cn('rounded px-4 py-2 text-sm font-black transition', itemTab === item.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900')}
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600">
-            销售项目
-            <select value={projectFilter} onChange={(event) => { setProjectFilter(event.target.value as Project | 'all'); setPage(1); }} className="bg-transparent text-sm text-slate-800 outline-none">
-              <option value="all">全部</option>
-              {(Object.keys(projectMeta) as Project[]).map((project) => (
-                <option key={project} value={project}>{projectMeta[project].short}</option>
-              ))}
-            </select>
-          </label>
           <button className="flex h-9 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-sm font-bold text-white">
             <Download size={15} />
             导出
@@ -975,44 +1109,85 @@ function RevenueSalesItemStatsPanel({ orders }: { orders: RevenueOrder[] }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] border-separate border-spacing-0 text-sm">
-          <thead>
-            <tr className="bg-slate-50 text-xs font-black text-slate-500">
-              <th className="border-b border-slate-100 px-4 py-3 text-left">门店</th>
-              <th className="border-b border-slate-100 px-4 py-3 text-left">销售项目</th>
-              <th className="border-b border-slate-100 px-4 py-3 text-left">销售品项</th>
-              <th className="border-b border-slate-100 px-4 py-3 text-right">销售总额</th>
-              <th className="border-b border-slate-100 px-4 py-3 text-right">退款金额</th>
-              <th className="border-b border-slate-100 px-4 py-3 text-right">储值卡/余额支付</th>
-              <th className="border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-right text-blue-700">经营营收金额</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageRows.map((row) => (
-              <tr key={row.store + row.project + row.itemName} className="font-bold text-slate-800">
-                <td className="border-b border-slate-100 px-4 py-3">{stores.find((item) => item.id === row.store)?.name ?? row.store}</td>
-                <td className="border-b border-slate-100 px-4 py-3">{row.projectName}</td>
-                <td className="border-b border-slate-100 px-4 py-3">{row.itemName}</td>
-                <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.sales)}</td>
-                <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.refund)}</td>
-                <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.storedBalance)}</td>
-                <td className="border-b border-slate-100 bg-blue-50/40 px-4 py-3 text-right font-black tabular-nums text-blue-700">{money(row.actualRevenue)}</td>
+      {itemTab === 'business' ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1060px] border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-xs font-black text-slate-500">
+                <th className="border-b border-slate-100 px-4 py-3 text-left">门店</th>
+                <th className="border-b border-slate-100 px-4 py-3 text-left">销售项目</th>
+                <th className="border-b border-slate-100 px-4 py-3 text-left">销售品项</th>
+                <th className="border-b border-slate-100 px-4 py-3 text-right">平台销售额</th>
+                <th className="border-b border-slate-100 px-4 py-3 text-right">平台退款额</th>
+                <th className="border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-right text-blue-700">平台营收金额</th>
+                <th className="border-b border-slate-100 bg-emerald-50/60 px-4 py-3 text-right text-emerald-700">储值卡/余额支付</th>
+                <th className="border-b border-slate-100 bg-amber-50/60 px-4 py-3 text-right text-amber-700">第三方团购核销</th>
+                <th className="border-b border-slate-100 bg-slate-100 px-4 py-3 text-right text-slate-800">经营发生额</th>
               </tr>
-            ))}
-            <tr className="bg-slate-50 text-sm font-black text-slate-900">
-              <td className="border-t border-slate-200 px-4 py-3" colSpan={3}>合计</td>
-              <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums">{money(total.sales)}</td>
-              <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums">{money(total.refund)}</td>
-              <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums">{money(total.storedBalance)}</td>
-              <td className="border-t border-slate-200 bg-blue-50/60 px-4 py-3 text-right tabular-nums text-blue-700">{money(total.actualRevenue)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {pageRows.map((row) => (
+                <tr key={row.store + row.project + row.itemName} className="font-bold text-slate-800">
+                  <td className="border-b border-slate-100 px-4 py-3">{stores.find((item) => item.id === row.store)?.name ?? row.store}</td>
+                  <td className="border-b border-slate-100 px-4 py-3">{row.projectName}</td>
+                  <td className="border-b border-slate-100 px-4 py-3">{row.itemName}</td>
+                  <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.sales)}</td>
+                  <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums text-rose-600">{money(row.refund)}</td>
+                  <td className="border-b border-slate-100 bg-blue-50/40 px-4 py-3 text-right font-black tabular-nums text-blue-700">{money(row.actualRevenue)}</td>
+                  <td className="border-b border-slate-100 bg-emerald-50/40 px-4 py-3 text-right tabular-nums text-emerald-700">{money(row.storedBalance)}</td>
+                  <td className="border-b border-slate-100 bg-amber-50/40 px-4 py-3 text-right tabular-nums text-amber-700">{money(row.thirdPartyGroup)}</td>
+                  <td className="border-b border-slate-100 bg-slate-50 px-4 py-3 text-right font-black tabular-nums text-slate-900">{money(row.businessAmount)}</td>
+                </tr>
+              ))}
+              <tr className="bg-slate-50 text-sm font-black text-slate-900">
+                <td className="border-t border-slate-200 px-4 py-3" colSpan={3}>合计</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums">{money(total.sales)}</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums text-rose-600">{money(total.refund)}</td>
+                <td className="border-t border-slate-200 bg-blue-50/60 px-4 py-3 text-right tabular-nums text-blue-700">{money(total.actualRevenue)}</td>
+                <td className="border-t border-slate-200 bg-emerald-50/60 px-4 py-3 text-right tabular-nums text-emerald-700">{money(total.storedBalance)}</td>
+                <td className="border-t border-slate-200 bg-amber-50/60 px-4 py-3 text-right tabular-nums text-amber-700">{money(total.thirdPartyGroup)}</td>
+                <td className="border-t border-slate-200 bg-slate-100 px-4 py-3 text-right tabular-nums">{money(total.businessAmount)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-xs font-black text-slate-500">
+                <th className="border-b border-slate-100 px-4 py-3 text-left">门店</th>
+                <th className="border-b border-slate-100 px-4 py-3 text-left">预收项目</th>
+                <th className="border-b border-slate-100 px-4 py-3 text-left">收款渠道</th>
+                <th className="border-b border-slate-100 px-4 py-3 text-right">新售卡/充值金额</th>
+                <th className="border-b border-slate-100 px-4 py-3 text-right">退款金额</th>
+                <th className="border-b border-slate-100 bg-emerald-50/60 px-4 py-3 text-right text-emerald-700">净收款金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagePrepaidRows.map((row) => (
+                <tr key={row.store + row.key + row.source} className="font-bold text-slate-800">
+                  <td className="border-b border-slate-100 px-4 py-3">{stores.find((item) => item.id === row.store)?.name ?? row.store}</td>
+                  <td className="border-b border-slate-100 px-4 py-3">{row.itemName}</td>
+                  <td className="border-b border-slate-100 px-4 py-3">{sourceMeta[row.source].name}</td>
+                  <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums">{money(row.sales)}</td>
+                  <td className="border-b border-slate-100 px-4 py-3 text-right tabular-nums text-rose-600">{money(row.refund)}</td>
+                  <td className="border-b border-slate-100 bg-emerald-50/40 px-4 py-3 text-right font-black tabular-nums text-emerald-700">{money(row.netAmount)}</td>
+                </tr>
+              ))}
+              <tr className="bg-slate-50 text-sm font-black text-slate-900">
+                <td className="border-t border-slate-200 px-4 py-3" colSpan={3}>合计</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums">{money(prepaidTotal.sales)}</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-right tabular-nums text-rose-600">{money(prepaidTotal.refund)}</td>
+                <td className="border-t border-slate-200 bg-emerald-50/60 px-4 py-3 text-right tabular-nums text-emerald-700">{money(prepaidTotal.netAmount)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs font-semibold text-slate-500">
-        <span>共 {rows.length} 条，当前第 {currentPage} / {totalPages} 页</span>
+        <span>共 {rowCount} 条，当前第 {currentPage} / {totalPages} 页</span>
         <div className="flex gap-2">
           <button disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(value - 1, 1))} className="h-8 rounded-md border border-slate-200 px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">上一页</button>
           <button disabled={currentPage === totalPages} onClick={() => setPage((value) => Math.min(value + 1, totalPages))} className="h-8 rounded-md border border-slate-200 px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">下一页</button>
@@ -1024,7 +1199,7 @@ function RevenueSalesItemStatsPanel({ orders }: { orders: RevenueOrder[] }) {
 
 function buildRevenueSalesItemRows(orders: RevenueOrder[]): RevenueSalesItemRow[] {
   const grouped = new Map<string, RevenueSalesItemRow>();
-  const addRow = (order: RevenueOrder, itemName: string, amount: { sales: number; refund: number; storedBalance: number; actualRevenue: number }) => {
+  const addRow = (order: RevenueOrder, itemName: string, amount: { sales: number; refund: number; actualRevenue: number; storedBalance: number; thirdPartyGroup: number; businessAmount: number }) => {
     const projectName = getRevenueSalesProjectName(order.project, itemName);
     const key = [order.store, projectName, itemName].join('|');
     const current = grouped.get(key) ?? {
@@ -1034,36 +1209,37 @@ function buildRevenueSalesItemRows(orders: RevenueOrder[]): RevenueSalesItemRow[
       itemName,
       sales: 0,
       refund: 0,
-      storedBalance: 0,
       actualRevenue: 0,
+      storedBalance: 0,
+      thirdPartyGroup: 0,
+      businessAmount: 0,
     };
     current.sales += amount.sales;
     current.refund += amount.refund;
-    current.storedBalance += amount.storedBalance;
     current.actualRevenue += amount.actualRevenue;
+    current.storedBalance += amount.storedBalance;
+    current.thirdPartyGroup += amount.thirdPartyGroup;
+    current.businessAmount += amount.businessAmount;
     grouped.set(key, current);
   };
 
   orders.forEach((order) => {
-    const refund = order.refund ?? 0;
-    const storedBalance = order.payment === 'storedBalance' ? order.paid : 0;
-    const actualRevenue = order.paid - refund - storedBalance;
-
-    if (order.project === 'storedCard') {
-      splitRevenueSalesItemAmount({ sales: order.paid, refund, storedBalance, actualRevenue }, [0.68, 0.32]).forEach((amount, index) => {
-        addRow(order, index === 0 ? '储值卡销售' : '余额充值', amount);
-      });
-      return;
-    }
-
-    addRow(order, getRevenueSalesItemName(order), { sales: order.paid, refund, storedBalance, actualRevenue });
+    const amount = summarizeRevenueComposition([order]);
+    addRow(order, getRevenueSalesItemName(order), {
+      sales: amount.sales,
+      refund: amount.refund,
+      actualRevenue: amount.actualRevenue,
+      storedBalance: amount.storedBalance,
+      thirdPartyGroup: amount.thirdPartyGroup,
+      businessAmount: amount.businessAmount,
+    });
   });
 
-  return Array.from(grouped.values()).filter((row) => row.sales > 0).sort((a, b) => {
+  return Array.from(grouped.values()).filter((row) => row.businessAmount > 0).sort((a, b) => {
     const storeCompare = (stores.findIndex((item) => item.id === a.store) - stores.findIndex((item) => item.id === b.store));
     if (storeCompare !== 0) return storeCompare;
     if (a.projectName !== b.projectName) return a.projectName.localeCompare(b.projectName, 'zh-Hans');
-    return b.actualRevenue - a.actualRevenue;
+    return b.businessAmount - a.businessAmount;
   });
 }
 
@@ -1088,15 +1264,29 @@ function splitRevenueSalesItemAmount(total: { sales: number; refund: number; sto
   });
 }
 
+function summarizePrepaidRows(rows: RevenuePrepaidRow[]) {
+  return rows.reduce(
+    (acc, row) => ({
+      sales: acc.sales + row.sales,
+      refund: acc.refund + row.refund,
+      netAmount: acc.netAmount + row.netAmount,
+      orders: acc.orders + row.orders,
+    }),
+    { sales: 0, refund: 0, netAmount: 0, orders: 0 },
+  );
+}
+
 function summarizeSalesItemRows(rows: RevenueSalesItemRow[]) {
   return rows.reduce(
     (acc, row) => ({
       sales: acc.sales + row.sales,
       refund: acc.refund + row.refund,
-      storedBalance: acc.storedBalance + row.storedBalance,
       actualRevenue: acc.actualRevenue + row.actualRevenue,
+      storedBalance: acc.storedBalance + row.storedBalance,
+      thirdPartyGroup: acc.thirdPartyGroup + row.thirdPartyGroup,
+      businessAmount: acc.businessAmount + row.businessAmount,
     }),
-    { sales: 0, refund: 0, storedBalance: 0, actualRevenue: 0 },
+    { sales: 0, refund: 0, actualRevenue: 0, storedBalance: 0, thirdPartyGroup: 0, businessAmount: 0 },
   );
 }
 
@@ -1129,7 +1319,7 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
       tone: 'blue',
       payments: ['payCode', 'wechat'] as Payment[],
       details: [
-        { label: '收银台收款（商户扫码+用户扫码）', payment: 'payCode' as Payment },
+        { label: '收银台下单（商户扫码+用户扫码）', payment: 'payCode' as Payment },
         { label: '小程序收款', payment: 'wechat' as Payment },
       ],
     },
@@ -1140,8 +1330,8 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
       tone: 'emerald',
       payments: ['corporate', 'offline'] as Payment[],
       details: [
-        { label: '对公转账', payment: 'corporate' as Payment },
-        { label: '线下付款', payment: 'offline' as Payment },
+        { label: '收银台下单（对公转账）', payment: 'corporate' as Payment },
+        { label: '收银台下单（线下付款）', payment: 'offline' as Payment },
       ],
     },
     {
@@ -1158,11 +1348,13 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
   ];
   const settlementRows = groupDefinitions.map((group) => {
     const groupTotal = summarize(orders.filter((order) => group.payments.includes(order.payment)));
-    return { ...group, total: groupTotal, netAmount: Math.max(groupTotal.channelAmount - groupTotal.refund, 0) };
+    return { ...group, total: groupTotal, netAmount: group.key === 'thirdParty' ? groupTotal.thirdPartyGroup : Math.max(groupTotal.channelAmount - groupTotal.refund, 0) };
   });
   const platformNet = settlementRows.find((row) => row.key === 'platform')?.netAmount ?? 0;
   const merchantNet = settlementRows.find((row) => row.key === 'merchant')?.netAmount ?? 0;
   const thirdPartyNet = settlementRows.find((row) => row.key === 'thirdParty')?.netAmount ?? 0;
+  const platformRevenue = summarize(orders.filter(isPlatformRevenueOrder)).actualRevenue;
+  const prepaidNet = summarize(orders.filter((order) => order.project === 'storedCard')).sales - summarize(orders.filter((order) => order.project === 'storedCard')).refund;
   const accountRows = buildPlatformAccountRows(orders);
 
   return (
@@ -1202,7 +1394,7 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
               <div className="mt-3 space-y-1.5">
                 {group.details.map((detail) => {
                   const detailTotal = summarize(orders.filter((order) => order.payment === detail.payment));
-                  const detailNet = Math.max(detailTotal.channelAmount - detailTotal.refund, 0);
+                  const detailNet = group.key === 'thirdParty' ? detailTotal.thirdPartyGroup : Math.max(detailTotal.channelAmount - detailTotal.refund, 0);
                   return (
                     <div key={detail.payment} className="flex items-center justify-between gap-2 rounded-md bg-white/70 px-2.5 py-2 text-xs font-bold">
                       <span className="min-w-0 truncate">{detail.label}</span>
@@ -1217,9 +1409,10 @@ function SettlementReconciliationPanel({ orders }: { orders: RevenueOrder[] }) {
         })}
       </div>
 
-      <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/70 px-3.5 py-3 text-sm font-black text-indigo-900">
-        经营营收金额 {money(totals.actualRevenue)} = 平台收款 {money(platformNet)} + 商户自行收款 {money(merchantNet)} + 第三方团购 {money(thirdPartyNet)}
+      <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 px-3.5 py-3 text-xs font-bold leading-5 text-slate-600">
+        平台收款 {money(platformNet)} + 商户自行收款 {money(merchantNet)} = 平台营收 {money(platformRevenue)} + 储值卡/余额净收款金额 {money(prepaidNet)}
       </div>
+
       </>
       ) : (
         <AccountReconciliationTable rows={accountRows} />
@@ -1356,46 +1549,90 @@ function splitSummaryTotal(total: ReturnType<typeof summarize>, weights: number[
   });
 }
 
+function RevenuePrepaidSummaryTable({ rows }: { rows: RevenuePrepaidRow[] }) {
+  const total = summarizePrepaidRows(rows);
+
+  return (
+    <Panel title="预收款构成" icon={Wallet}>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="text-xs font-black text-slate-500">
+              <th className="w-[240px] border-b border-slate-100 py-3 pr-3 text-left">预收项目</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">新售卡/充值金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
+              <th className="border-b border-slate-100 bg-emerald-50/60 px-3 py-3 text-right text-emerald-700">净收款金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key} className="font-bold text-slate-800">
+                <td className="border-b border-slate-100 py-3 pr-3"><RowName rowKey={row.key} type="project" /></td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.sales)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{money(row.refund)}</td>
+                <td className="border-b border-slate-100 bg-emerald-50/40 px-3 py-3 text-right font-black tabular-nums text-emerald-700">{money(row.netAmount)}</td>
+                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.orders}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-50 text-sm font-black text-slate-900">
+              <td className="border-b border-slate-100 py-3 pr-3">合计</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(total.sales)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{money(total.refund)}</td>
+              <td className="border-b border-slate-100 bg-emerald-50/60 px-3 py-3 text-right tabular-nums text-emerald-700">{money(total.netAmount)}</td>
+              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{total.orders}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
 function RevenueBreakdownTable({ title, rows, type, total }: {
   title: string;
-  rows: { key: string; total: ReturnType<typeof summarize> }[];
+  rows: { key: string; total: ReturnType<typeof summarizeRevenueComposition> }[];
   type: 'project' | 'sport' | 'source';
   total: number;
 }) {
-  const tableTotal = summarizeTotals(rows.map((row) => row.total));
+  const tableTotal = summarizeRevenueCompositionTotals(rows.map((row) => row.total));
 
   return (
     <Panel title={title} icon={type === 'source' || type === 'sport' ? Store : BarChart3}>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] border-separate border-spacing-0 text-sm">
+        <table className="w-full min-w-[960px] border-separate border-spacing-0 text-sm">
           <thead>
             <tr className="text-xs font-black text-slate-500">
               <th className="w-[220px] border-b border-slate-100 py-3 pr-3 text-left">{type === 'project' ? '销售项目' : type === 'sport' ? '运动项目' : '销售渠道'}</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡/余额支付</th>
-              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">经营营收金额</th>
-              <th className="w-[150px] border-b border-slate-100 py-3 pl-3 text-right">占比</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">平台销售额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款额</th>
+              <th className="border-b border-slate-100 bg-blue-50/60 px-3 py-3 text-right text-blue-700">平台营收金额</th>
+              <th className="border-b border-slate-100 bg-emerald-50/60 px-3 py-3 text-right text-emerald-700">储值卡/余额支付</th>
+              <th className="border-b border-slate-100 bg-amber-50/60 px-3 py-3 text-right text-amber-700">第三方团购核销</th>
+              <th className="border-b border-slate-100 bg-slate-100 px-3 py-3 text-right text-slate-800">经营发生额</th>
+              <th className="w-[120px] border-b border-slate-100 py-3 pl-3 text-right">占比</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const percent = total > 0 ? (row.total.actualRevenue / total) * 100 : 0;
+              const percent = total > 0 ? (row.total.businessAmount / total) * 100 : 0;
               return (
                 <tr key={row.key} className="font-bold text-slate-800">
                   <td className="border-b border-slate-100 py-3 pr-3">
                     <RowName rowKey={row.key} type={type} />
-                    {type === 'source' && row.key === 'cashier' && <div className="mt-1 text-xs font-bold text-slate-400">含商户扫码、线下付款、对公转账</div>}
+                    {type === 'source' && row.key === 'cashier' && <div className="mt-1 text-xs font-bold text-slate-400">含商户扫码、用户扫码、线下付款、对公转账</div>}
                   </td>
-                  <td className="border-b border-slate-100 bg-slate-50/70 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
                   <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{money(row.total.refund)}</td>
-                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.storedBalance)}</td>
-                  <td className="border-b border-slate-100 bg-indigo-50/50 px-3 py-3 text-right tabular-nums text-indigo-700">{money(row.total.actualRevenue)}</td>
+                  <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
+                  <td className="border-b border-slate-100 bg-emerald-50/40 px-3 py-3 text-right tabular-nums text-emerald-700">{money(row.total.storedBalance)}</td>
+                  <td className="border-b border-slate-100 bg-amber-50/40 px-3 py-3 text-right tabular-nums text-amber-700">{money(row.total.thirdPartyGroup)}</td>
+                  <td className="border-b border-slate-100 bg-slate-50 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(row.total.businessAmount)}</td>
                   <td className="border-b border-slate-100 py-3 pl-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <span className="w-12 text-xs font-black tabular-nums text-slate-500">{percent.toFixed(1)}%</span>
-                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
-                        <span className="block h-full rounded-full bg-indigo-500" style={{ width: Math.min(Math.max(percent, 0), 100) + '%' }} />
+                      <span className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
+                        <span className="block h-full rounded-full bg-slate-500" style={{ width: Math.min(Math.max(percent, 0), 100) + '%' }} />
                       </span>
                     </div>
                   </td>
@@ -1406,8 +1643,10 @@ function RevenueBreakdownTable({ title, rows, type, total }: {
               <td className="border-b border-slate-100 py-3 pr-3">合计</td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(tableTotal.sales)}</td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{money(tableTotal.refund)}</td>
-              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-blue-700">{money(tableTotal.storedBalance)}</td>
-              <td className="border-b border-slate-100 bg-indigo-50 px-3 py-3 text-right tabular-nums text-indigo-700">{money(tableTotal.actualRevenue)}</td>
+              <td className="border-b border-slate-100 bg-blue-50/60 px-3 py-3 text-right tabular-nums text-blue-700">{money(tableTotal.actualRevenue)}</td>
+              <td className="border-b border-slate-100 bg-emerald-50/60 px-3 py-3 text-right tabular-nums text-emerald-700">{money(tableTotal.storedBalance)}</td>
+              <td className="border-b border-slate-100 bg-amber-50/60 px-3 py-3 text-right tabular-nums text-amber-700">{money(tableTotal.thirdPartyGroup)}</td>
+              <td className="border-b border-slate-100 bg-slate-100 px-3 py-3 text-right tabular-nums">{money(tableTotal.businessAmount)}</td>
               <td className="border-b border-slate-100 py-3 pl-3 text-right text-xs text-slate-500">100.0%</td>
             </tr>
           </tbody>
@@ -1468,7 +1707,7 @@ function FinancialSummaryPanel({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <div className="text-xl font-black tracking-normal text-slate-900">{money(sum)}</div>
-            <div className="mt-1 text-[11px] font-bold text-slate-400">{type === 'project' || type === 'sport' || type === 'source' ? '经营营收金额' : '核对金额'}</div>
+            <div className="mt-1 text-[11px] font-bold text-slate-400">{type === 'project' || type === 'sport' || type === 'source' ? '平台营收金额' : '核对金额'}</div>
           </div>
         </div>
         <div className="space-y-2.5">
@@ -1482,13 +1721,12 @@ function FinancialSummaryPanel({
                   <div className="min-w-0 text-sm font-black text-slate-700">
                     <RowName rowKey={row.key} type={type} compact />
                   </div>
-                  {type === 'source' && row.key === 'cashier' && <div className="mt-0.5 text-xs font-bold text-slate-400">含商户扫码、线下付款、对公转账</div>}
+                  {type === 'source' && row.key === 'cashier' && <div className="mt-0.5 text-xs font-bold text-slate-400">含商户扫码、用户扫码、线下付款、对公转账</div>}
                   {type === 'project' || type === 'sport' || type === 'source' ? (
                     <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] font-bold xl:grid-cols-4">
-                      <SummaryMiniStat label="销售总额" value={money(row.total.sales)} tone="slate" />
-                      <SummaryMiniStat label="退款金额" value={money(row.total.refund)} tone={row.total.refund > 0 ? 'amber' : 'muted'} />
-                      <SummaryMiniStat label="储值卡/余额支付" value={money(row.total.storedBalance)} tone="blue" />
-                      <SummaryMiniStat label="经营营收金额" value={money(row.total.actualRevenue)} tone="slate" />
+                      <SummaryMiniStat label="平台销售额" value={money(row.total.sales)} tone="slate" />
+                      <SummaryMiniStat label="平台退款额" value={money(row.total.refund)} tone={row.total.refund > 0 ? 'amber' : 'muted'} />
+                      <SummaryMiniStat label="平台营收金额" value={money(row.total.actualRevenue)} tone="slate" />
                     </div>
                   ) : (
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
@@ -1624,7 +1862,7 @@ function CourseTrainingReport({ period, customRange, onPeriodChange, onCustomRan
       <KeyMetricNotes
         items={[
           '课程经营概览按顶部门店和时间筛选汇总，只呈现售课、消课、待履约三个大方向。',
-          '课程培训报表按课程业务发生口径统计，包含小程序、收银台、美团核销、抖音核销等课程订单；金额用于经营分析，并与营收报表的经营发生口径保持一致。',
+          '课程培训报表按课程经营发生口径统计，包含平台售课、储值卡/余额支付消课权益，以及美团、抖音等第三方团购核销形成的课程权益。',
           '售课分析仅统计区间内交易成功且未退款的课程订单；销售渠道仅做结构分析，不拆分明细行。',
           '消课课时指统计区间内已完成上课并扣减会员课时余额的课时；待上课课时指已预约排课但尚未完成上课的课时。',
           '待履约为截至统计区间结束日的课程余额快照，不等同于区间发生额。',
@@ -2487,14 +2725,28 @@ function VenueBookingReport({
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_auto_1fr_auto_1fr_auto_1fr] xl:items-center">
-          <BillFormulaItem label="场地预订营收金额" value={money(selectedSubVenueTotal.actualRevenue)} primary />
+        <div className="grid gap-4 xl:grid-cols-[1.15fr_auto_1fr_auto_1fr] xl:items-center">
+          <BillFormulaItem label="订场经营发生额" value={money(selectedSubVenueTotal.businessAmount)} primary />
           <FormulaOperator value="=" />
-          <BillFormulaItem label="销售总额" value={money(selectedSubVenueTotal.sales)} note="平台已支付订场金额" />
-          <FormulaOperator value="-" />
-          <BillFormulaItem label="退款金额" value={money(selectedSubVenueTotal.refund)} note="场地预订退款冲减金额" />
-          <FormulaOperator value="-" />
-          <BillFormulaItem label="储值卡/余额支付" value={money(selectedSubVenueTotal.storedBalance)} note="预收余额使用，不重复确认收入" />
+          <BillFormulaItem
+            label="订场平台营收"
+            value={money(selectedSubVenueTotal.actualRevenue)}
+            note="平台销售额 - 平台退款额"
+            details={[
+              { label: '平台销售额', value: money(selectedSubVenueTotal.sales) },
+              { label: '平台退款额', value: money(selectedSubVenueTotal.refund) },
+            ]}
+          />
+          <FormulaOperator value="+" />
+          <BillFormulaItem
+            label="储值卡/余额支付"
+            value={money(selectedSubVenueTotal.storedBalance)}
+            note="预收余额消费"
+            details={[
+              { label: '储值卡支付', value: money(selectedSubVenueTotal.storedCardPay) },
+              { label: '余额支付', value: money(selectedSubVenueTotal.balancePay) },
+            ]}
+          />
         </div>
       </section>
 
@@ -2503,10 +2755,10 @@ function VenueBookingReport({
           <CompactRevenueCards
             title="销售渠道"
             rows={sourceRows.map((row) => ({ key: sourceMeta[row.key as Source].name, total: row.total }))}
-            total={selectedSubVenueTotal.actualRevenue}
+            total={selectedSubVenueTotal.businessAmount}
           />
-          <CompactRevenueCards title="用户类型" rows={memberRows} total={selectedSubVenueTotal.actualRevenue} />
-          <CompactRevenueCards title="订场方式" rows={bookingMethodRows} total={selectedSubVenueTotal.actualRevenue} />
+          <CompactRevenueCards title="用户类型" rows={memberRows} total={selectedSubVenueTotal.businessAmount} />
+          <CompactRevenueCards title="订场方式" rows={bookingMethodRows} total={selectedSubVenueTotal.businessAmount} />
         </div>
       </section>
 
@@ -2546,10 +2798,10 @@ function VenueBookingReport({
 
       <KeyMetricNotes
         items={[
-          '场地预订营收金额 = 场地预订销售总额 - 退款金额 - 储值卡/余额支付。',
-          '场地预订报表按经营发生口径统计，如存在美团、抖音订场核销则计入场地预订营收。',
-          '储值卡/余额支付为预收余额使用，不重复确认收入。',
-          '销售渠道、用户类型、订场方式均按场地预订营收金额拆分，合计金额一致。',
+          '订场平台营收 = 场地平台销售额 - 场地平台退款额；平台销售额不含储值卡/余额支付。',
+          '订场经营发生额 = 订场平台营收 + 储值卡/余额支付，用于查看订场业务规模。',
+          '储值卡/余额支付为预收余额消费，不重复计入平台营收。',
+          '销售渠道、用户类型、订场方式、场景分布、分时段分析和场地号分析均按订场经营发生额拆分。',
           '场景分布按场馆和订场场景展示，空值表示当前无该场景发生额。',
         ]}
       />
@@ -2576,7 +2828,7 @@ function VenueAnalysisVenueSelect({ value, onChange }: { value: VenueSubVenue; o
 }
 
 function VenueLineChart({ rows }: { rows: { label: string; total: VenueFinancialTotal }[] }) {
-  const values = rows.map((row) => Math.max(row.total.actualRevenue, 0));
+  const values = rows.map((row) => Math.max(row.total.businessAmount, 0));
   const max = Math.max(...values, 1);
   const width = 980;
   const height = 210;
@@ -2618,10 +2870,11 @@ function TimeFinancialTable({ rows }: { rows: { label: string; total: VenueFinan
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">时段</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡/余额支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">营收金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台销售额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款额</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
+            <th className="border-b border-slate-100 bg-emerald-50/50 px-3 py-3 text-right text-emerald-700">储值卡/余额支付</th>
+            <th className="border-b border-slate-100 bg-slate-100 px-3 py-3 text-right text-slate-800">经营发生额</th>
           </tr>
         </thead>
         <tbody>
@@ -2630,8 +2883,9 @@ function TimeFinancialTable({ rows }: { rows: { label: string; total: VenueFinan
               <td className="border-b border-slate-100 px-3 py-3">{row.label}</td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.refund)}</td>
-              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>
               <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
+              <td className="border-b border-slate-100 bg-emerald-50/40 px-3 py-3 text-right tabular-nums text-emerald-700">{money(row.total.storedBalance)}</td>
+              <td className="border-b border-slate-100 bg-slate-50 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(row.total.businessAmount)}</td>
             </tr>
           ))}
         </tbody>
@@ -2672,7 +2926,7 @@ function CompactRevenueCards({
 }) {
   const isWide = variant === 'wide';
   const colors = ['#e96a7a', '#a855f7', '#a5b4fc', '#38bdf8', '#22c55e', '#f59e0b', '#14b8a6', '#6366f1', '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#64748b'];
-  const values = rows.map((row) => Math.max(row.total.actualRevenue, 0));
+  const values = rows.map((row) => Math.max(row.total.businessAmount, 0));
   const sum = values.reduce((acc, value) => acc + value, 0);
   let offset = 0;
   const radius = 58;
@@ -2776,23 +3030,25 @@ function VenueFinancialTable({
         <thead>
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">{firstColumn}</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡/余额支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">营收金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台销售额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款额</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
+            <th className="border-b border-slate-100 bg-emerald-50/50 px-3 py-3 text-right text-emerald-700">储值卡/余额支付</th>
+            <th className="border-b border-slate-100 bg-slate-100 px-3 py-3 text-right text-slate-800">经营发生额</th>
             {showShare && <th className="border-b border-slate-100 px-3 py-3 text-right">占比</th>}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => {
-            const share = total > 0 ? ((Math.max(row.total.actualRevenue, 0) / total) * 100).toFixed(1) + '%' : '0.0%';
+            const share = total > 0 ? ((Math.max(row.total.businessAmount, 0) / total) * 100).toFixed(1) + '%' : '0.0%';
             return (
               <tr key={row.key} className="font-bold text-slate-800">
                 <td className="border-b border-slate-100 px-3 py-3">{row.key}</td>
                 <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
                 <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.refund)}</td>
-                <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>
                 <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
+                <td className="border-b border-slate-100 bg-emerald-50/40 px-3 py-3 text-right tabular-nums text-emerald-700">{money(row.total.storedBalance)}</td>
+                <td className="border-b border-slate-100 bg-slate-50 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(row.total.businessAmount)}</td>
                   {showShare && <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{share}</td>}
               </tr>
             );
@@ -2807,7 +3063,13 @@ type VenueFinancialTotal = {
   sales: number;
   refund: number;
   storedBalance: number;
+  storedCardPay: number;
+  balancePay: number;
+  thirdPartyGroup: number;
+  meituan: number;
+  douyin: number;
   actualRevenue: number;
+  businessAmount: number;
   orders: number;
 };
 
@@ -2826,10 +3088,11 @@ function CourtSalesTable({ rows }: { rows: CourtSalesRow[] }) {
           <tr className="text-xs font-black text-slate-500">
             <th className="border-b border-slate-100 px-3 py-3 text-left">场地号</th>
             <th className="border-b border-slate-100 px-3 py-3 text-left">场地类型</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">销售总额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">退款金额</th>
-            <th className="border-b border-slate-100 px-3 py-3 text-right">储值卡/余额支付</th>
-            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">营收金额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台销售额</th>
+            <th className="border-b border-slate-100 px-3 py-3 text-right">平台退款额</th>
+            <th className="border-b border-slate-100 bg-blue-50/50 px-3 py-3 text-right text-blue-700">平台营收</th>
+            <th className="border-b border-slate-100 bg-emerald-50/50 px-3 py-3 text-right text-emerald-700">储值卡/余额支付</th>
+            <th className="border-b border-slate-100 bg-slate-100 px-3 py-3 text-right text-slate-800">经营发生额</th>
             <th className="border-b border-slate-100 px-3 py-3 text-right">预订时长</th>
           </tr>
         </thead>
@@ -2842,8 +3105,9 @@ function CourtSalesTable({ rows }: { rows: CourtSalesRow[] }) {
               </td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.sales)}</td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.refund)}</td>
-              <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.total.storedBalance)}</td>
               <td className="border-b border-slate-100 bg-blue-50/40 px-3 py-3 text-right tabular-nums text-blue-700">{money(row.total.actualRevenue)}</td>
+              <td className="border-b border-slate-100 bg-emerald-50/40 px-3 py-3 text-right tabular-nums text-emerald-700">{money(row.total.storedBalance)}</td>
+              <td className="border-b border-slate-100 bg-slate-50 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(row.total.businessAmount)}</td>
               <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.hours}小时</td>
             </tr>
           ))}
@@ -2891,17 +3155,27 @@ function buildMemberRows(total: VenueFinancialTotal) {
   const vipRefund = Math.round(total.refund * 0.45);
   const vipStored = total.storedBalance;
   const vipOrders = Math.round(total.orders * 0.52);
+  const vipStoredCardPay = vipStored;
+  const vipBalancePay = 0;
+  const vipThirdParty = 0;
   const vipActual = Math.max(vipSales - vipRefund, 0);
+  const vipBusiness = vipActual + vipStored + vipThirdParty;
   const guest = {
     sales: total.sales - vipSales,
     refund: total.refund - vipRefund,
     storedBalance: 0,
+    storedCardPay: 0,
+    balancePay: 0,
+    thirdPartyGroup: total.thirdPartyGroup,
+    meituan: total.meituan,
+    douyin: total.douyin,
     actualRevenue: total.actualRevenue - vipActual,
+    businessAmount: Math.max(total.businessAmount - vipBusiness, 0),
     orders: total.orders - vipOrders,
   };
 
   return [
-    { key: 'VIP会员（储值卡会员）', total: { sales: vipSales, refund: vipRefund, storedBalance: vipStored, actualRevenue: vipActual, orders: vipOrders } },
+    { key: '会员', total: { sales: vipSales, refund: vipRefund, storedBalance: vipStored, storedCardPay: vipStoredCardPay, balancePay: vipBalancePay, thirdPartyGroup: vipThirdParty, meituan: 0, douyin: 0, actualRevenue: vipActual, businessAmount: vipBusiness, orders: vipOrders } },
     { key: '散客', total: guest },
   ];
 }
@@ -2938,11 +3212,11 @@ function VenueSceneTable({ rows }: { rows: { key: string; total: VenueFinancialT
                 <td className="sticky left-0 z-10 border-b border-r border-slate-100 bg-white px-4 py-4 text-slate-800">{venueRow.name}</td>
                 {venueRow.rows.map((row) => (
                   <td key={row.key} className="border-b border-r border-slate-100 px-4 py-4 tabular-nums">
-                    {row.total.orders > 0 || row.total.actualRevenue > 0 ? `${row.total.orders}场，${money(row.total.actualRevenue)}` : '-'}
+                    {row.total.orders > 0 || row.total.businessAmount > 0 ? `${row.total.orders}场，${money(row.total.businessAmount)}` : '-'}
                   </td>
                 ))}
                 <td className="border-b border-r border-slate-100 bg-blue-50/40 px-4 py-4 font-black tabular-nums text-blue-700">
-                  {venueRow.total.orders}场，{money(venueRow.total.actualRevenue)}
+                  {venueRow.total.orders}场，{money(venueRow.total.businessAmount)}
                 </td>
               </tr>
             ))}
@@ -2955,8 +3229,8 @@ function VenueSceneTable({ rows }: { rows: { key: string; total: VenueFinancialT
 
 function buildVenueSceneDisplayRows(rows: { key: string; total: VenueFinancialTotal }[]) {
   const total = mergeVenueTotals(rows.map((row) => row.total));
-  const basketballAmount = Math.round(total.actualRevenue * 0.18);
-  const badmintonAmount = Math.max(total.actualRevenue - basketballAmount, 0);
+  const basketballAmount = Math.round(total.businessAmount * 0.18);
+  const badmintonAmount = Math.max(total.businessAmount - basketballAmount, 0);
   const basketballOrders = Math.round(total.orders * 0.16);
   const badmintonOrders = Math.max(total.orders - basketballOrders, 0);
 
@@ -3001,7 +3275,13 @@ function buildSparseVenueSceneRows(rows: { key: string; total: VenueFinancialTot
         sales: amount,
         refund: 0,
         storedBalance: 0,
+        storedCardPay: 0,
+        balancePay: 0,
+        thirdPartyGroup: 0,
+        meituan: 0,
+        douyin: 0,
         actualRevenue: amount,
+        businessAmount: amount,
         orders,
       },
     };
@@ -3040,7 +3320,13 @@ function scaleVenueTotal(total: VenueFinancialTotal, weight: number): VenueFinan
     sales: Math.round(total.sales * weight),
     refund: Math.round(total.refund * weight),
     storedBalance: Math.round(total.storedBalance * weight),
+    storedCardPay: Math.round(total.storedCardPay * weight),
+    balancePay: Math.round(total.balancePay * weight),
+    thirdPartyGroup: Math.round(total.thirdPartyGroup * weight),
+    meituan: Math.round(total.meituan * weight),
+    douyin: Math.round(total.douyin * weight),
     actualRevenue: Math.max(Math.round(total.actualRevenue * weight), 0),
+    businessAmount: Math.max(Math.round(total.businessAmount * weight), 0),
     orders: Math.round(total.orders * weight),
   };
 }
@@ -3049,6 +3335,13 @@ function distributeVenueFinancial(total: VenueFinancialTotal, weights: number[],
   let usedSales = 0;
   let usedRefund = 0;
   let usedStored = 0;
+  let usedStoredCardPay = 0;
+  let usedBalancePay = 0;
+  let usedThirdParty = 0;
+  let usedMeituan = 0;
+  let usedDouyin = 0;
+  let usedActual = 0;
+  let usedBusiness = 0;
   let usedOrders = 0;
 
   return weights.map((weight, index) => {
@@ -3056,10 +3349,24 @@ function distributeVenueFinancial(total: VenueFinancialTotal, weights: number[],
     const sales = isLast ? total.sales - usedSales : Math.round(total.sales * weight);
     const refund = isLast ? total.refund - usedRefund : Math.round(total.refund * weight);
     const storedBalance = isLast ? total.storedBalance - usedStored : Math.round(total.storedBalance * weight);
+    const storedCardPay = isLast ? total.storedCardPay - usedStoredCardPay : Math.round(total.storedCardPay * weight);
+    const balancePay = isLast ? total.balancePay - usedBalancePay : Math.round(total.balancePay * weight);
+    const thirdPartyGroup = isLast ? total.thirdPartyGroup - usedThirdParty : Math.round(total.thirdPartyGroup * weight);
+    const meituan = isLast ? total.meituan - usedMeituan : Math.round(total.meituan * weight);
+    const douyin = isLast ? total.douyin - usedDouyin : Math.round(total.douyin * weight);
+    const actualRevenue = isLast ? total.actualRevenue - usedActual : Math.round(total.actualRevenue * weight);
+    const businessAmount = isLast ? total.businessAmount - usedBusiness : Math.round(total.businessAmount * weight);
     const orders = isLast ? total.orders - usedOrders : Math.round(total.orders * weight);
     usedSales += sales;
     usedRefund += refund;
     usedStored += storedBalance;
+    usedStoredCardPay += storedCardPay;
+    usedBalancePay += balancePay;
+    usedThirdParty += thirdPartyGroup;
+    usedMeituan += meituan;
+    usedDouyin += douyin;
+    usedActual += actualRevenue;
+    usedBusiness += businessAmount;
     usedOrders += orders;
     return {
       hour: startHour + index,
@@ -3067,7 +3374,13 @@ function distributeVenueFinancial(total: VenueFinancialTotal, weights: number[],
         sales,
         refund,
         storedBalance,
-        actualRevenue: Math.max(sales - refund - storedBalance, 0),
+        storedCardPay,
+        balancePay,
+        thirdPartyGroup,
+        meituan,
+        douyin,
+        actualRevenue: Math.max(actualRevenue, 0),
+        businessAmount: Math.max(businessAmount, 0),
         orders,
       },
     };
@@ -3075,12 +3388,18 @@ function distributeVenueFinancial(total: VenueFinancialTotal, weights: number[],
 }
 
 function summarizeVenueFinancial(rows: RevenueOrder[]): VenueFinancialTotal {
-  const total = summarize(rows);
+  const total = summarizeRevenueComposition(rows);
   return {
     sales: total.sales,
     refund: Math.min(total.refund, total.sales),
     storedBalance: total.storedBalance,
+    storedCardPay: Math.round(total.storedBalance * 0.7),
+    balancePay: total.storedBalance - Math.round(total.storedBalance * 0.7),
+    thirdPartyGroup: total.thirdPartyGroup,
+    meituan: total.meituan,
+    douyin: total.douyin,
     actualRevenue: total.actualRevenue,
+    businessAmount: total.actualRevenue + total.storedBalance,
     orders: total.orders,
   };
 }
@@ -3102,10 +3421,16 @@ function mergeVenueTotals(totals: VenueFinancialTotal[]) {
       sales: acc.sales + total.sales,
       refund: acc.refund + total.refund,
       storedBalance: acc.storedBalance + total.storedBalance,
+      storedCardPay: acc.storedCardPay + total.storedCardPay,
+      balancePay: acc.balancePay + total.balancePay,
+      thirdPartyGroup: acc.thirdPartyGroup + total.thirdPartyGroup,
+      meituan: acc.meituan + total.meituan,
+      douyin: acc.douyin + total.douyin,
       actualRevenue: acc.actualRevenue + total.actualRevenue,
+      businessAmount: acc.businessAmount + total.businessAmount,
       orders: acc.orders + total.orders,
     }),
-    { sales: 0, refund: 0, storedBalance: 0, actualRevenue: 0, orders: 0 },
+    { sales: 0, refund: 0, storedBalance: 0, storedCardPay: 0, balancePay: 0, thirdPartyGroup: 0, meituan: 0, douyin: 0, actualRevenue: 0, businessAmount: 0, orders: 0 },
   );
 }
 
@@ -3137,7 +3462,6 @@ function RecognitionIncomeDashboard({
   const categoryRows = useMemo(() => recognitionReportCategoryRows(cards, recognitionMonth), [cards, recognitionMonth]);
   const storeRows = useMemo(() => recognitionReportStoreRows(cards, store, recognitionMonth), [cards, store, recognitionMonth]);
   const productRows = useMemo(() => recognitionReportProductRows(cards, recognitionMonth), [cards, recognitionMonth]);
-  const detailRows = useMemo(() => recognitionReportDetailRows(cards, recognitionMonth), [cards, recognitionMonth]);
 
   return (
     <div className="space-y-5">
@@ -3157,7 +3481,7 @@ function RecognitionIncomeDashboard({
       </section>
 
       <div className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500">
-        {'\u53e3\u5f84\u8bf4\u660e\uff1a\u6b21/\u65f6\u95f4\u5361\u3001\u79c1\u6559\u5361\u6309\u5361\u9879\u914d\u7f6e\u7684\u786e\u8ba4\u671f\u6570\u8fdb\u884c\u6708\u5ea6\u7ed3\u8f6c\uff1b\u50a8\u503c\u5361\u9500\u552e\u4f5c\u4e3a\u9884\u6536\u6b3e\uff0c\u4f1a\u5458\u4f7f\u7528\u50a8\u503c\u5361\u6d88\u8d39\u65f6\u6309\u5df2\u6d88\u8017\u91d1\u989d\u786e\u8ba4\u6536\u5165\uff1b\u5546\u54c1\u9500\u552e\u5728\u4ed8\u6b3e\u5f53\u6708\u786e\u8ba4\u6536\u5165\u3002'}
+确认收入按履约和结转规则统计：售卡/充值属于预收款，消费或核销履约后再确认收入。
       </div>
 
       <Panel title={'\u6536\u5165\u7c7b\u578b\u7edf\u8ba1'} icon={CreditCard}>
@@ -3167,8 +3491,8 @@ function RecognitionIncomeDashboard({
       <Panel title={'\u95e8\u5e97\u786e\u8ba4\u6536\u5165\u7edf\u8ba1'} icon={Building2}>
         <div className="mb-3 inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
           {[
-            { key: 'store', label: '\u6309\u95e8\u5e97' },
-            { key: 'product', label: '\u9879\u76ee/\u5361\u9879\u5171\u8ba1' },
+            { key: 'store', label: '按门店统计' },
+            { key: 'product', label: '按项目/卡项统计' },
           ].map((item) => (
             <button
               key={item.key}
@@ -3186,17 +3510,14 @@ function RecognitionIncomeDashboard({
         {recognitionStoreTab === 'store' ? <RecognitionReportStoreTable rows={storeRows} periodLabel={periodLabel} /> : <RecognitionReportProductTable rows={productRows} periodLabel={periodLabel} />}
       </Panel>
 
-      <Panel title={'\u5468\u671f\u7ed3\u8f6c\u660e\u7ec6'} icon={ReceiptText}>
-        <RecognitionReportDetailTable rows={detailRows} periodLabel={periodLabel} />
-      </Panel>
 
       <KeyMetricNotes
         items={[
-          '确认收入按卡项配置的确认期数进行结转。',
-          '储值卡销售、余额充值作为预收款，会员实际消费时确认收入。',
+          '确认收入按卡项配置的确认期数进行结转，筛选区间用于查看对应范围内的确认收入。',
+          '储值卡销售、余额充值作为预收款，不在售卡/充值当期确认收入；会员实际消费时按消耗金额确认收入。',
+          '第三方团购核销形成的平台权益按对应卡项或服务的履约规则确认收入，补贴券和退款需以第三方平台核对为准。',
           '商品销售在付款当期确认收入。',
-          '筛选区间用于查看对应统计范围，确认收入仍遵循结转口径。',
-          '确认收入报表按经营发生口径覆盖平台订单及第三方团购核销形成的待履约权益。',
+          '待确认收入余额为截至统计区间结束日仍未完成结转或履约确认的余额。',
         ]}
       />
     </div>
@@ -3809,6 +4130,142 @@ function RecognitionDetailTable({ rows, month }: { rows: RecognitionCardSale[]; 
   );
 }
 
+function buildRevenuePrepaidRows(orders: RevenueOrder[]): RevenuePrepaidRow[] {
+  const grouped = new Map<'storedCard' | 'balanceRecharge', RevenuePrepaidRow>();
+  orders.filter((order) => order.project === 'storedCard').forEach((order) => {
+    splitPrepaidOrderAmount(order).forEach((item) => {
+      const current = grouped.get(item.key) ?? { key: item.key, sales: 0, refund: 0, netAmount: 0, orders: 0 };
+      current.sales += item.sales;
+      current.refund += item.refund;
+      current.netAmount += item.netAmount;
+      current.orders += item.orders;
+      grouped.set(item.key, current);
+    });
+  });
+  return Array.from(grouped.values()).filter((row) => row.sales > 0).sort((a, b) => b.netAmount - a.netAmount);
+}
+
+function buildRevenuePrepaidItemRows(orders: RevenueOrder[]): RevenuePrepaidItemRow[] {
+  const grouped = new Map<string, RevenuePrepaidItemRow>();
+  orders.filter((order) => order.project === 'storedCard').forEach((order) => {
+    splitPrepaidOrderAmount(order).forEach((item) => {
+      const itemName = projectBreakdownMeta[item.key].name;
+      const key = [order.store, item.key, order.source].join('|');
+      const current = grouped.get(key) ?? { store: order.store, source: order.source, itemName, key: item.key, sales: 0, refund: 0, netAmount: 0, orders: 0 };
+      current.sales += item.sales;
+      current.refund += item.refund;
+      current.netAmount += item.netAmount;
+      current.orders += item.orders;
+      grouped.set(key, current);
+    });
+  });
+  return Array.from(grouped.values()).filter((row) => row.sales > 0).sort((a, b) => {
+    const storeCompare = stores.findIndex((item) => item.id === a.store) - stores.findIndex((item) => item.id === b.store);
+    if (storeCompare !== 0) return storeCompare;
+    if (a.key !== b.key) return a.key === 'storedCard' ? -1 : 1;
+    return b.netAmount - a.netAmount;
+  });
+}
+
+function splitPrepaidOrderAmount(order: RevenueOrder) {
+  const weights = [0.68, 0.32];
+  const keys = ['storedCard', 'balanceRecharge'] as const;
+  let usedSales = 0;
+  let usedRefund = 0;
+  let usedOrders = 0;
+
+  return weights.map((weight, index) => {
+    const isLast = index === weights.length - 1;
+    const sales = isLast ? order.paid - usedSales : Math.round(order.paid * weight);
+    const refund = isLast ? (order.refund ?? 0) - usedRefund : Math.round((order.refund ?? 0) * weight);
+    const orderCount = isLast ? order.orders - usedOrders : Math.round(order.orders * weight);
+    usedSales += sales;
+    usedRefund += refund;
+    usedOrders += orderCount;
+    return {
+      key: keys[index],
+      sales,
+      refund,
+      netAmount: Math.max(sales - refund, 0),
+      orders: Math.max(orderCount, 0),
+    };
+  });
+}
+
+function summarizeRevenueComposition(rows: RevenueOrder[]) {
+  const base = rows.reduce(
+    (acc, row) => {
+      const isThirdPartyGroup = row.payment === 'meituanGroup' || row.payment === 'douyinGroup';
+      const isStoredBalance = row.payment === 'storedBalance';
+      const isPlatform = isPlatformRevenueOrder(row);
+      const refund = row.refund ?? 0;
+
+      acc.receivable += row.receivable;
+      acc.discount += row.discount;
+      acc.orders += row.orders;
+
+      if (isPlatform) {
+        acc.sales += row.paid;
+        acc.refund += refund;
+      }
+
+      if (isStoredBalance) acc.storedBalance += row.paid;
+
+      if (isThirdPartyGroup) {
+        acc.thirdPartyGroup += row.paid;
+        if (row.payment === 'meituanGroup') acc.meituan += row.paid;
+        if (row.payment === 'douyinGroup') acc.douyin += row.paid;
+      }
+
+      return acc;
+    },
+    { receivable: 0, discount: 0, sales: 0, refund: 0, storedBalance: 0, storedCardRevenue: 0, meituan: 0, douyin: 0, thirdPartyGroup: 0, orders: 0 },
+  );
+  const actualRevenue = Math.max(base.sales - base.refund, 0);
+  const businessAmount = actualRevenue + base.storedBalance + base.thirdPartyGroup;
+
+  return {
+    ...base,
+    actualRevenue,
+    businessAmount,
+    channelAmount: businessAmount,
+  };
+}
+
+function summarizeRevenueCompositionTotals(totals: ReturnType<typeof summarizeRevenueComposition>[]) {
+  return totals.reduce(
+    (acc, item) => ({
+      receivable: acc.receivable + item.receivable,
+      discount: acc.discount + item.discount,
+      sales: acc.sales + item.sales,
+      refund: acc.refund + item.refund,
+      storedBalance: acc.storedBalance + item.storedBalance,
+      storedCardRevenue: acc.storedCardRevenue + item.storedCardRevenue,
+      meituan: acc.meituan + item.meituan,
+      douyin: acc.douyin + item.douyin,
+      thirdPartyGroup: acc.thirdPartyGroup + item.thirdPartyGroup,
+      orders: acc.orders + item.orders,
+      actualRevenue: acc.actualRevenue + item.actualRevenue,
+      businessAmount: acc.businessAmount + item.businessAmount,
+      channelAmount: acc.channelAmount + item.channelAmount,
+    }),
+    summarizeRevenueComposition([]),
+  );
+}
+
+function groupByRevenueComposition<T extends keyof RevenueOrder>(rows: RevenueOrder[], key: T) {
+  const grouped = new Map<string, RevenueOrder[]>();
+  rows.forEach((row) => {
+    const value = String(row[key]);
+    grouped.set(value, [...(grouped.get(value) ?? []), row]);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([groupKey, groupRows]) => ({ key: groupKey, total: summarizeRevenueComposition(groupRows) }))
+    .filter((row) => row.total.businessAmount > 0)
+    .sort((a, b) => b.total.businessAmount - a.total.businessAmount);
+}
+
 function summarize(rows: RevenueOrder[]) {
   const base = rows.reduce(
     (acc, row) => {
@@ -4249,7 +4706,7 @@ function RevenueTotalCard({
 
   return (
     <div className="rounded-lg border border-blue-500 bg-blue-600 p-4 text-white shadow-sm shadow-blue-200/60">
-      <div className="text-xs font-bold text-white/70">经营营收金额</div>
+      <div className="text-xs font-bold text-white/70">平台营收金额</div>
       <div className="mt-1.5 text-4xl font-black tracking-normal">{money(total)}</div>
       <div className="mt-2 text-[11px] font-semibold text-white/65">销售总额 - 退款金额 - 储值卡/余额支付</div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -4285,7 +4742,7 @@ function SalesBreakdownCards({ sales, storedBalance, actualRevenue, refund }: {
         </div>
       </div>
       <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-bold text-blue-700">
-        销售总额 {money(sales)} - 退款金额 {money(refund)} - 储值卡/余额支付 {money(storedBalance)} = 经营营收金额 {money(actualRevenue)}
+        销售总额 {money(sales)} - 退款金额 {money(refund)} - 储值卡/余额支付 {money(storedBalance)} = 平台营收金额 {money(actualRevenue)}
       </div>
     </div>
   );
@@ -4420,7 +4877,7 @@ function ProjectDetailStats({ project, total, dashboard }: { project: Project; t
               {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-blue-700">销售额</th>}
               {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-amber-700">第三方团购核销额</th>}
               {!isFitness && <th className="border-b border-slate-100 px-3 py-3 text-right text-slate-800">经营发生额</th>}
-              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">经营营收金额</th>
+              <th className="border-b border-slate-100 px-3 py-3 text-right text-indigo-700">平台营收金额</th>
               <th className="border-b border-slate-100 px-3 py-3 text-right">订单数</th>
             </tr>
           </thead>
@@ -4498,7 +4955,7 @@ function DataTable({ rows, type, total, dashboard }: { rows: { key: string; tota
             {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right text-blue-700">销售额</th>}
             {!isFitness && <th className="border-b border-slate-100 px-2 py-3 text-right text-amber-700">第三方团购核销额</th>}
             <th className="border-b border-slate-100 px-2 py-3 text-right text-slate-800">经营发生额</th>
-            <th className="border-b border-slate-100 px-2 py-3 text-right text-indigo-700">经营营收金额</th>
+            <th className="border-b border-slate-100 px-2 py-3 text-right text-indigo-700">平台营收金额</th>
             <th className="border-b border-slate-100 py-3 pl-2 text-right">订单数</th>
           </tr>
         </thead>
