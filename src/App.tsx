@@ -602,7 +602,7 @@ function DesktopDashboard() {
     { id: 'venueBooking', label: '场地预订报表', icon: CalendarDays },
     { id: 'courseTraining', label: '课程培训报表', icon: TicketCheck },
     { id: 'recognition', label: '确认收入报表', icon: ReceiptText },
-    { id: 'orderStats', label: '订单统计', icon: ReceiptText },
+    { id: 'orderStats', label: '订单统计报表', icon: ReceiptText },
   ] satisfies { id: DashboardType; label: string; icon: typeof Store }[];
 
   return (
@@ -687,20 +687,86 @@ function DesktopDashboard() {
   );
 }
 
+type QuickCollectionSummaryMode = 'content' | 'category';
+
+type QuickCollectionSummaryRow = {
+  key: string;
+  category: string;
+  content?: string;
+  unitPrice?: number;
+  count: number;
+  miniProgram: number;
+  scanPay: number;
+  offlinePay: number;
+  corporatePay: number;
+  net: number;
+};
+
+function getQuickCollectionCategory(row: OrderSummaryRow) {
+  return /门票|儿童票|亲子套票/.test(row.content) ? '门票' : '泳具';
+}
+
+function summarizeQuickCollectionRows(rows: OrderSummaryRow[], mode: QuickCollectionSummaryMode) {
+  const grouped = new Map<string, QuickCollectionSummaryRow>();
+
+  rows.forEach((row) => {
+    const category = getQuickCollectionCategory(row);
+    const key = mode === 'content' ? [category, row.content, row.unitPrice].join('|') : category;
+    const current = grouped.get(key) ?? {
+      key,
+      category,
+      content: mode === 'content' ? row.content : undefined,
+      unitPrice: mode === 'content' ? row.unitPrice : undefined,
+      count: 0,
+      miniProgram: 0,
+      scanPay: 0,
+      offlinePay: 0,
+      corporatePay: 0,
+      net: 0,
+    };
+
+    current.count += row.count;
+    current.miniProgram += row.miniProgram;
+    current.scanPay += row.scanPay;
+    current.offlinePay += row.offlinePay;
+    current.corporatePay += row.corporatePay;
+    current.net += row.miniProgram + row.scanPay + row.offlinePay + row.corporatePay;
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values());
+}
+
+function summarizeQuickCollectionTotals(rows: QuickCollectionSummaryRow[]) {
+  return rows.reduce((acc, row) => {
+    acc.count += row.count;
+    acc.miniProgram += row.miniProgram;
+    acc.scanPay += row.scanPay;
+    acc.offlinePay += row.offlinePay;
+    acc.corporatePay += row.corporatePay;
+    acc.net += row.net;
+    return acc;
+  }, { count: 0, miniProgram: 0, scanPay: 0, offlinePay: 0, corporatePay: 0, net: 0 });
+}
+
 function OrderStatisticsReport() {
   const [period, setPeriod] = useState<Period>('today');
   const [customRange, setCustomRange] = useState<CustomDateRange>({ start: '2026-06-29', end: '2026-06-29' });
   const [selectedVenue, setSelectedVenue] = useState<string>('晋爵会海湾外馆');
   const [activeTab, setActiveTab] = useState<'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard'>('all');
+  const [quickMode, setQuickMode] = useState<QuickCollectionSummaryMode>('content');
   const [page, setPage] = useState(1);
-  const rows = useMemo(() => orderSummaryRows.filter((row) => {
-    if (selectedVenue !== 'all' && row.venue !== selectedVenue) return false;
+  const venueRows = useMemo(() => orderSummaryRows.filter((row) => selectedVenue === 'all' || row.venue === selectedVenue), [selectedVenue]);
+  const rows = useMemo(() => venueRows.filter((row) => {
     if (activeTab === 'passCard') return row.productType === '次卡';
     if (activeTab === 'timeCard') return row.productType === '时间卡';
     if (activeTab === 'goods') return row.orderType === '快捷收款订单';
     if (activeTab === 'courseCard') return row.productType === '课程卡';
     return true;
-  }), [activeTab, selectedVenue]);
+  }), [activeTab, venueRows]);
+  const quickRows = useMemo(() => venueRows.filter((row) => row.orderType === '快捷收款订单'), [venueRows]);
+  const quickSummaryRows = useMemo(() => summarizeQuickCollectionRows(quickRows, quickMode), [quickMode, quickRows]);
+  const quickTotals = useMemo(() => summarizeQuickCollectionTotals(quickSummaryRows), [quickSummaryRows]);
   const totals = useMemo(() => rows.reduce((acc, row) => {
     acc.count += row.count;
     acc.miniProgram += row.miniProgram;
@@ -731,7 +797,7 @@ function OrderStatisticsReport() {
             { id: 'all', name: '全部' },
             { id: 'passCard', name: '次卡统计' },
             { id: 'timeCard', name: '时间卡统计' },
-            { id: 'goods', name: '商品销售统计' },
+            { id: 'goods', name: '快捷收款统计' },
             { id: 'courseCard', name: '课程卡统计' },
           ].map((item) => (
             <button key={item.id} onClick={() => { setActiveTab(item.id as 'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard'); setPage(1); }} className={cn('h-9 rounded-md px-3 text-sm font-bold', activeTab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>{item.name}</button>
@@ -789,6 +855,62 @@ function OrderStatisticsReport() {
             <button onClick={() => setPage(Math.max(currentPage - 1, 1))} disabled={currentPage <= 1} className="h-9 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">上一页</button>
             <button onClick={() => setPage(Math.min(currentPage + 1, totalPages))} disabled={currentPage >= totalPages} className="h-9 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">下一页</button>
           </div>
+        </div>
+      </Panel>
+
+      <Panel title="快捷收款统计" icon={ShoppingBag}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+            统计维度
+            <select value={quickMode} onChange={(event) => setQuickMode(event.target.value as QuickCollectionSummaryMode)} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-400">
+              <option value="content">订单内容统计</option>
+              <option value="category">商品分类统计</option>
+            </select>
+          </label>
+          <div className="text-xs font-semibold text-slate-500">商品分类根据后台快捷商品分类自动读取</div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className={cn('w-full border-separate border-spacing-0 text-sm', quickMode === 'content' ? 'min-w-[1120px]' : 'min-w-[900px]')}>
+            <thead>
+              <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
+                <th className="border-b border-slate-200 px-3 py-3">商品分类</th>
+                {quickMode === 'content' && <th className="border-b border-slate-200 px-3 py-3">订单内容</th>}
+                {quickMode === 'content' && <th className="border-b border-slate-200 px-3 py-3 text-right">单价</th>}
+                <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">小程序收款</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">商户/用户扫码</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">线下付款</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">对公转账</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quickSummaryRows.map((row) => (
+                <tr key={row.key} className="bg-white hover:bg-slate-50/70">
+                  <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-800">{row.category}</td>
+                  {quickMode === 'content' && <td className="border-b border-slate-100 px-3 py-3 text-slate-700">{row.content}</td>}
+                  {quickMode === 'content' && <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.unitPrice === undefined ? '-' : money(row.unitPrice)}</td>}
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.count}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.miniProgram > 0 ? money(row.miniProgram) : '-'}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.scanPay > 0 ? money(row.scanPay) : '-'}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.offlinePay > 0 ? money(row.offlinePay) : '-'}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.corporatePay > 0 ? money(row.corporatePay) : '-'}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(row.net)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-slate-50 text-sm font-black text-slate-900">
+                <td className="px-3 py-3" colSpan={quickMode === 'content' ? 3 : 1}>合计</td>
+                <td className="px-3 py-3 text-right tabular-nums">{quickTotals.count}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(quickTotals.miniProgram)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(quickTotals.scanPay)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(quickTotals.offlinePay)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(quickTotals.corporatePay)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(quickTotals.net)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </Panel>
     </div>
