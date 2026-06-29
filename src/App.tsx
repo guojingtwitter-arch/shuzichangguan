@@ -60,7 +60,7 @@ type RevenueOrder = {
 
 const stores = [
   { id: 'all', name: '全部门店' },
-  { id: 'north', name: '湖滨旗舰馆' },
+  { id: 'north', name: '湖滨旗舰店' },
   { id: 'river', name: '江湾训练馆' },
   { id: 'east', name: '东城综合馆' },
 ] satisfies { id: StoreId; name: string }[];
@@ -161,26 +161,34 @@ type OrderSummaryRow = {
   unitPrice: number;
   count: number;
   refund: number;
+  miniProgram: number;
+  scanPay: number;
+  offlinePay: number;
 };
 
+const orderStatsVenueOptions = [
+  { id: 'all', name: '全部门店' },
+  { id: '晋爵会海湾外馆', name: '晋爵会海湾外馆' },
+] satisfies { id: 'all' | string; name: string }[];
+
 const orderSummaryRows: OrderSummaryRow[] = [
-  { id: 'OS001', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 8, refund: 0 },
-  { id: 'OS002', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 2, refund: 0 },
-  { id: 'OS003', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳50次卡', unitPrice: 950, count: 3, refund: 950 },
-  { id: 'OS004', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳门票', unitPrice: 32, count: 16, refund: 64 },
-  { id: 'OS005', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳门票', unitPrice: 32, count: 5, refund: 0 },
-  { id: 'OS006', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 7, refund: 22 },
-  { id: 'OS007', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 3, refund: 0 },
-  { id: 'OS008', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 6, refund: 0 },
-  { id: 'OS009', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 2, refund: 48 },
-  { id: 'OS010', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳10次卡', unitPrice: 260, count: 2, refund: 0 },
-  { id: 'OS011', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳20次卡', unitPrice: 480, count: 1, refund: 0 },
-  { id: 'OS012', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳30次卡', unitPrice: 660, count: 2, refund: 0 },
-  { id: 'OS013', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳50次卡', unitPrice: 1050, count: 1, refund: 0 },
-  { id: 'OS014', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '沐浴露', unitPrice: 1, count: 12, refund: 0 },
-  { id: 'OS015', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '一次性浴巾', unitPrice: 5, count: 9, refund: 0 },
-  { id: 'OS016', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '泳圈', unitPrice: 35, count: 2, refund: 0 },
-  { id: 'OS017', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '英发2800泳镜', unitPrice: 129, count: 1, refund: 0 },
+  { id: 'OS001', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 8, refund: 0, miniProgram: 144, scanPay: 56, offlinePay: 0 },
+  { id: 'OS002', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 2, refund: 0, miniProgram: 0, scanPay: 34, offlinePay: 16 },
+  { id: 'OS003', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳50次卡', unitPrice: 950, count: 3, refund: 950, miniProgram: 1368, scanPay: 532, offlinePay: 0 },
+  { id: 'OS004', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳门票', unitPrice: 32, count: 16, refund: 64, miniProgram: 323, scanPay: 125, offlinePay: 0 },
+  { id: 'OS005', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳门票', unitPrice: 32, count: 5, refund: 0, miniProgram: 0, scanPay: 109, offlinePay: 51 },
+  { id: 'OS006', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 7, refund: 22, miniProgram: 95, scanPay: 37, offlinePay: 0 },
+  { id: 'OS007', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 3, refund: 0, miniProgram: 0, scanPay: 45, offlinePay: 21 },
+  { id: 'OS008', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 6, refund: 0, miniProgram: 207, scanPay: 81, offlinePay: 0 },
+  { id: 'OS009', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 2, refund: 48, miniProgram: 0, scanPay: 33, offlinePay: 15 },
+  { id: 'OS010', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳10次卡', unitPrice: 260, count: 2, refund: 0, miniProgram: 374, scanPay: 146, offlinePay: 0 },
+  { id: 'OS011', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳20次卡', unitPrice: 480, count: 1, refund: 0, miniProgram: 346, scanPay: 134, offlinePay: 0 },
+  { id: 'OS012', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳30次卡', unitPrice: 660, count: 2, refund: 0, miniProgram: 950, scanPay: 370, offlinePay: 0 },
+  { id: 'OS013', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳50次卡', unitPrice: 1050, count: 1, refund: 0, miniProgram: 756, scanPay: 294, offlinePay: 0 },
+  { id: 'OS014', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '沐浴露', unitPrice: 1, count: 12, refund: 0, miniProgram: 0, scanPay: 8, offlinePay: 4 },
+  { id: 'OS015', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '一次性浴巾', unitPrice: 5, count: 9, refund: 0, miniProgram: 0, scanPay: 31, offlinePay: 14 },
+  { id: 'OS016', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '泳圈', unitPrice: 35, count: 2, refund: 0, miniProgram: 0, scanPay: 48, offlinePay: 22 },
+  { id: 'OS017', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '英发2800泳镜', unitPrice: 129, count: 1, refund: 0, miniProgram: 0, scanPay: 88, offlinePay: 41 },
 ];
 
 const projectDetailCatalog: Record<Project, { name: string; weight: number }[]> = {
@@ -432,240 +440,8 @@ function MobileReportPage({
     <div className="space-y-4">
       <div className="flex items-center justify-between pt-2">
         <button onClick={onBack} className="rounded-full bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm">返回</button>
-        <div className="text-base font-black">{titleMap[report]}</div>
-        <div className="w-12" />
-      </div>
-      <div className="rounded-2xl bg-white p-3 shadow-sm">
-        <div className="grid grid-cols-3 gap-2">
-          {periods.slice(0, 3).map((item) => (
-            <button key={item.id} onClick={() => onPeriodChange(item.id)} className={cn('h-9 rounded-xl text-sm font-black', period === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600')}>
-              {item.name}
-            </button>
-          ))}
-        </div>
-        <div className="mt-2 text-center text-xs font-bold text-slate-400">统计区间：{activePeriod.range}</div>
-      </div>
-      {report === 'revenue' && <MobileRevenueReport orders={orders} />}
-      {report === 'venue' && <MobileVenueReport orders={orders} />}
-      {report === 'course' && <MobileCourseReport />}
-      {report === 'recognition' && <MobileRecognitionReport />}
-      <div className="rounded-2xl bg-white px-4 py-3 text-center text-xs font-bold text-slate-400 shadow-sm">更多明细请前往电脑后台查看</div>
-    </div>
-  );
-}
-
-function MobileRevenueReport({ orders }: { orders: RevenueOrder[] }) {
-  const totals = summarize(orders);
-  const operatingOrders = orders;
-  const projectRows = orderProjectRows(groupBy(operatingOrders, 'project')).slice(0, 4);
-  const sourceRows = groupBy(operatingOrders, 'source');
-
-  return (
-    <div className="space-y-3">
-      <MobileMetricGrid>
-        <MobileMetric title="平台营收金额" value={money(totals.actualRevenue)} tone="blue" />
-        <MobileMetric title="销售总额" value={money(totals.sales)} />
-        <MobileMetric title="退款金额" value={money(totals.refund)} />
-        <MobileMetric title="储值卡/余额支付" value={money(totals.storedBalance)} />
-      </MobileMetricGrid>
-      <MobileListCard title="销售项目">
-        {projectRows.map((row, index) => (
-          <div key={row.key}>
-            <MobileAmountRow rank={index + 1} label={projectMeta[row.key as Project].name} value={row.total.actualRevenue} total={totals.actualRevenue} />
-          </div>
-        ))}
-      </MobileListCard>
-      <MobileListCard title="销售渠道">
-        {sourceRows.map((row, index) => (
-          <div key={row.key}>
-            <MobileAmountRow rank={index + 1} label={sourceMeta[row.key as Source].name} value={row.total.actualRevenue} total={totals.actualRevenue} note={row.key === 'cashier' ? '含商户扫码、用户扫码、线下付款、对公转账' : undefined} />
-          </div>
-        ))}
-      </MobileListCard>
-    </div>
-  );
-}
-
-function MobileVenueReport({ orders }: { orders: RevenueOrder[] }) {
-  const venueOrders = orders.filter((order) => order.project === 'venue');
-  const totals = summarize(venueOrders);
-  const storeRows = groupBy(venueOrders, 'store').slice(0, 4);
-  const hours = Math.round(totals.orders * 1.4);
-
-  return (
-    <div className="space-y-3">
-      <MobileMetricGrid>
-        <MobileMetric title="预订金额" value={money(totals.actualRevenue)} tone="emerald" />
-        <MobileMetric title="预订订单数" value={String(totals.orders) + ' 单'} />
-        <MobileMetric title="场地使用时长" value={String(hours) + ' 小时'} />
-        <MobileMetric title="预估使用率" value={String(Math.min(96, Math.round(totals.orders / 2.8))) + '%'} />
-      </MobileMetricGrid>
-      <MobileListCard title="热门场馆">
-        {storeRows.map((row, index) => (
-          <div key={row.key}>
-            <MobileAmountRow rank={index + 1} label={stores.find((item) => item.id === row.key)?.name ?? row.key} value={row.total.actualRevenue} total={totals.actualRevenue} />
-          </div>
-        ))}
-      </MobileListCard>
-      <MobileListCard title="热门时段">
-        {['18:00-20:00', '20:00-22:00', '16:00-18:00'].map((label, index) => (
-          <div key={label}>
-            <MobileAmountRow rank={index + 1} label={label} value={Math.round(totals.actualRevenue * [0.36, 0.28, 0.18][index])} total={totals.actualRevenue} />
-          </div>
-        ))}
-      </MobileListCard>
-    </div>
-  );
-}
-
-function MobileCourseReport() {
-  const totals = summarizeCourseStats(courseStats);
-  const courseRows = groupCourseStats(courseStats, 'courseType').slice(0, 3);
-
-  return (
-    <div className="space-y-3">
-      <MobileMetricGrid>
-        <MobileMetric title="售课金额" value={money(totals.soldAmount)} tone="violet" />
-        <MobileMetric title="消课金额" value={money(totals.completedAmount)} />
-        <MobileMetric title="待履约金额" value={money(totals.soldHours > 0 ? Math.round((totals.soldAmount / totals.soldHours) * totals.remainingHours) : 0)} />
-        <MobileMetric title="消课课时" value={String(totals.completedHours) + ' 课时'} />
-      </MobileMetricGrid>
-      <MobileListCard title="课程类型">
-        {courseRows.map((row, index) => (
-          <div key={row.key}>
-            <MobileAmountRow rank={index + 1} label={courseTypeMeta[row.key as Exclude<CourseType, 'all'>].name} value={row.total.soldAmount} total={totals.soldAmount} />
-          </div>
-        ))}
-      </MobileListCard>
-      <MobileListCard title="教练消课排行">
-        {groupCourseStats(courseStats, 'coach').slice(0, 3).map((row, index) => (
-          <div key={row.key}>
-            <MobileAmountRow rank={index + 1} label={coachOptions.find((item) => item.id === row.key)?.name ?? row.key} value={row.total.completedAmount} total={totals.completedAmount} />
-          </div>
-        ))}
-      </MobileListCard>
-    </div>
-  );
-}
-
-function MobileRecognitionReport() {
-  const month = defaultRecognitionMonth;
-  const rows = recognitionCardSales.filter((row) => row.paidAt.startsWith(month));
-  const sales = rows.reduce((sum, row) => sum + row.paid, 0);
-  const recognized = Math.round(sales * 0.62);
-  const pending = Math.max(sales - recognized, 0);
-  const categoryRows = (Object.keys(recognitionCategoryMeta) as RecognitionCardSale['category'][]).map((category) => {
-    const total = rows.filter((row) => row.category === category).reduce((sum, row) => sum + row.paid, 0);
-    return { key: category, value: total };
-  }).filter((row) => row.value > 0);
-
-  return (
-    <div className="space-y-3">
-      <MobileMetricGrid>
-        <MobileMetric title="本月确认收入" value={money(recognized)} tone="amber" />
-        <MobileMetric title="本月销售金额" value={money(sales)} />
-        <MobileMetric title="待确认收入余额" value={money(pending)} />
-        <MobileMetric title="待确认期数" value={String(rows.reduce((sum, row) => sum + Math.max(row.periods - 1, 0), 0)) + ' 期'} />
-      </MobileMetricGrid>
-      <MobileListCard title="确认收入分类">
-        {categoryRows.map((row, index) => (
-          <div key={row.key}>
-            <MobileAmountRow rank={index + 1} label={recognitionCategoryMeta[row.key].name} value={row.value} total={sales} />
-          </div>
-        ))}
-      </MobileListCard>
-      <MobileListCard title="确认来源">
-        <MobileAmountRow rank={1} label="本月新售确认" value={Math.round(recognized * 0.68)} total={recognized} />
-        <MobileAmountRow rank={2} label="往期确认" value={Math.round(recognized * 0.32)} total={recognized} />
-      </MobileListCard>
-    </div>
-  );
-}
-
-function MobileMetricGrid({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-2 gap-3">{children}</div>;
-}
-
-function MobileMetric({ title, value, tone }: { title: string; value: string; tone?: 'blue' | 'emerald' | 'violet' | 'amber' }) {
-  const toneClass = tone === 'emerald' ? 'bg-emerald-600 text-white' : tone === 'violet' ? 'bg-violet-600 text-white' : tone === 'amber' ? 'bg-amber-500 text-white' : tone === 'blue' ? 'bg-blue-600 text-white' : 'bg-white text-slate-900';
-  return (
-    <div className={cn('min-h-24 rounded-2xl p-4 shadow-sm', toneClass)}>
-      <div className={cn('text-xs font-bold', tone ? 'text-white/75' : 'text-slate-500')}>{title}</div>
-      <div className="mt-3 text-xl font-black tracking-normal">{value}</div>
-    </div>
-  );
-}
-
-function MobileListCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm">
-      <div className="text-base font-black">{title}</div>
-      <div className="mt-3 space-y-3">{children}</div>
-    </section>
-  );
-}
-
-function MobileAmountRow({ rank, label, value, total, note }: { rank?: number; label: string; value: number; total: number; note?: string }) {
-  const percent = total > 0 ? Math.max((value / total) * 100, 0) : 0;
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
-      <div className="flex min-w-0 items-center gap-2.5">
-        {rank && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-blue-600 shadow-sm">{rank}</span>}
-        <div className="min-w-0">
-          <div className="truncate text-sm font-black text-slate-800">{label}</div>
-          {note && <div className="mt-0.5 truncate text-xs font-bold text-slate-400">{note}</div>}
-        </div>
-      </div>
-      <div className="shrink-0 text-right">
-        <div className="text-sm font-black tabular-nums text-slate-900">{money(value)}</div>
-        <div className="mt-0.5 text-xs font-bold text-slate-400">占比 {percent.toFixed(1)}%</div>
-      </div>
-    </div>
-  );
-}
-
-function App() {
-  const search = typeof window === 'undefined' ? '' : window.location.search;
-  const isMobilePreview = new URLSearchParams(search).get('view') === 'mobile';
-  return isMobilePreview ? <MobileManagerPreview /> : <DesktopDashboard />;
-}
-
-
-function DesktopDashboard() {
-  const [dashboard, setDashboard] = useState<DashboardType>('simpleRevenue');
-  const [period, setPeriod] = useState<Period>('today');
-  const [store, setStore] = useState<StoreId>('all');
-  const [tab, setTab] = useState<Tab>('project');
-  const [selectedProject, setSelectedProject] = useState<Project>('passCard');
-  const [customRange, setCustomRange] = useState<CustomDateRange>({ start: '2026-05-24', end: '2026-06-03' });
-
-  const filteredOrders = useMemo(() => {
-    const bucket = period === 'custom' ? ['today', 'week'] : [period];
-    return orders.filter((order) => {
-      const inScope = dashboard === 'venue' || dashboard === 'simpleRevenue' || dashboard === 'venueBooking' || (order.project !== 'venue' && order.project !== 'storedCard');
-      return inScope && bucket.includes(order.dateBucket) && (store === 'all' || order.store === store);
-    });
-  }, [dashboard, period, store]);
-
-  const totals = useMemo(() => summarize(filteredOrders), [filteredOrders]);
-  const projectRows = useMemo(() => orderProjectRows(groupBy(filteredOrders, 'project')), [filteredOrders]);
-  const sourceRows = useMemo(() => groupBy(filteredOrders, 'source'), [filteredOrders]);
-  const paymentRows = useMemo(() => groupBy(filteredOrders, 'payment'), [filteredOrders]);
-  const storeRows = useMemo(() => groupBy(filteredOrders, 'store'), [filteredOrders]);
-  const activePeriod = periods.find((item) => item.id === period)!;
-  const miniProgramRevenue = useMemo(() => summarize(filteredOrders.filter((order) => order.source === 'miniProgram')).actualRevenue, [filteredOrders]);
-  const cashierRevenue = useMemo(() => summarize(filteredOrders.filter((order) => order.source === 'cashier')).actualRevenue, [filteredOrders]);
-
-  return (
-    <div className="min-h-screen bg-[#f5f7fb] text-slate-800">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white lg:block">
-        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-600 text-white">
-            <Building2 size={21} />
-          </div>
-          <div>
-            <div className="text-base font-black">卡猫数字场馆</div>
-            <div className="text-xs font-semibold text-slate-500">经营收款看板</div>
+        <div className="text-base font-black">卡猫数字场馆</div>
+            <div className="text-xs font-semibold text-slate-500">经营统计看板</div>
           </div>
         </div>
         <nav className="px-3 py-4">
@@ -673,7 +449,7 @@ function DesktopDashboard() {
             { id: 'simpleRevenue', label: '营收报表', icon: CircleDollarSign },
             { id: 'venueBooking', label: '场地预订报表', icon: CalendarDays },
             { id: 'courseTraining', label: '课程培训报表', icon: TicketCheck },
-            { id: 'recognition', label: '\u786e\u8ba4\u6536\u5165\u62a5\u8868', icon: ReceiptText },
+            { id: 'recognition', label: '确认收入报表', icon: ReceiptText },
             { id: 'orderStats', label: '订单统计', icon: ReceiptText },
           ].map((item) => (
             <button
@@ -697,13 +473,13 @@ function DesktopDashboard() {
             <div>
               <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
                 <Store size={14} />
-                管理后台 / 营收分析
+                管理后台 / 统计报表
               </div>
-              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'orderStats' ? '订单统计' : dashboard === 'recognition' ? '\u786e\u8ba4\u6536\u5165\u62a5\u8868' : dashboard === 'courseTraining' ? '璇剧▼鍩硅鎶ヨ〃' : dashboard === 'venueBooking' ? '鍦哄湴棰勮鎶ヨ〃' : dashboard === 'simpleRevenue' ? '钀ユ敹缁熻' : '鏀跺叆鍒嗘瀽鐪嬫澘'}</h1>
+              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'orderStats' ? '订单统计' : dashboard === 'recognition' ? '确认收入报表' : dashboard === 'courseTraining' ? '课程培训报表' : dashboard === 'venueBooking' ? '场地预订报表' : dashboard === 'simpleRevenue' ? '营收报表' : '收入分析看板'}</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <a href="?view=mobile" className="flex h-10 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
-                手机版预览
+                手机端预览
               </a>
               <IconAction label="刷新">
                 <RefreshCw size={17} />
@@ -818,15 +594,17 @@ function DesktopDashboard() {
 function OrderStatisticsReport() {
   const [period, setPeriod] = useState<Period>('today');
   const [customRange, setCustomRange] = useState<CustomDateRange>({ start: '2026-06-29', end: '2026-06-29' });
+  const [selectedVenue, setSelectedVenue] = useState<string>('晋爵会海湾外馆');
   const [activeTab, setActiveTab] = useState<'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard'>('all');
   const [page, setPage] = useState(1);
   const rows = useMemo(() => orderSummaryRows.filter((row) => {
+    if (selectedVenue !== 'all' && row.venue !== selectedVenue) return false;
     if (activeTab === 'passCard') return row.productType === '次卡';
     if (activeTab === 'timeCard') return row.productType === '时间卡';
     if (activeTab === 'goods') return row.orderType === '快捷收款订单';
     if (activeTab === 'courseCard') return row.productType === '课程卡';
     return true;
-  }), [activeTab]);
+  }), [activeTab, selectedVenue]);
   const totals = useMemo(
     () => rows.reduce(
       (acc, row) => {
@@ -834,7 +612,7 @@ function OrderStatisticsReport() {
         acc.count += row.count;
         acc.amount += amount;
         acc.refund += row.refund;
-        acc.net += amount - row.refund;
+        acc.net += row.miniProgram + row.scanPay + row.offlinePay;
         return acc;
       },
       { count: 0, amount: 0, refund: 0, net: 0 },
@@ -850,18 +628,35 @@ function OrderStatisticsReport() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <Segmented
-          value={period}
-          customRange={customRange}
-          onChange={(nextPeriod) => {
-            setPeriod(nextPeriod);
-            setPage(1);
-          }}
-          onCustomRangeChange={(nextRange) => {
-            setCustomRange(nextRange);
-            setPage(1);
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmented
+            value={period}
+            customRange={customRange}
+            onChange={(nextPeriod) => {
+              setPeriod(nextPeriod);
+              setPage(1);
+            }}
+            onCustomRangeChange={(nextRange) => {
+              setCustomRange(nextRange);
+              setPage(1);
+            }}
+          />
+          <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
+            统计场馆
+            <select
+              value={selectedVenue}
+              onChange={(event) => {
+                setSelectedVenue(event.target.value);
+                setPage(1);
+              }}
+              className="h-8 min-w-[150px] bg-transparent text-sm font-bold text-slate-800 outline-none"
+            >
+              {orderStatsVenueOptions.map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+        </div>
         <button className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
           <Download size={15} />
           导出
@@ -869,9 +664,6 @@ function OrderStatisticsReport() {
       </div>
 
       <Panel title="订单统计表" icon={ReceiptText}>
-        <div className="mb-3 rounded-md bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600">
-          统计场馆：晋爵会海湾外馆
-        </div>
         <div className="mb-3 flex flex-wrap gap-2">
           {[
             { id: 'all', name: '全部' },
@@ -893,27 +685,32 @@ function OrderStatisticsReport() {
           ))}
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-[760px] w-full border-separate border-spacing-0 text-sm">
+          <table className="min-w-[1080px] w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
                   <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
-                  <th className="border-b border-slate-200 px-3 py-3">商品名称</th>
+                  <th className="border-b border-slate-200 px-3 py-3">订单内容</th>
                   <th className="border-b border-slate-200 px-3 py-3 text-right">单价</th>
                   <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
-                                                      <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">小程序收款</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">商户/用户扫码</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">线下付款/对公转账</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
                 </tr>
               </thead>
               <tbody>
                 {pagedRows.map((row) => {
-                  const amount = row.unitPrice * row.count;
-                  const net = amount - row.refund;
+                  const net = row.miniProgram + row.scanPay + row.offlinePay;
                   return (
                     <tr key={row.id} className="bg-white hover:bg-slate-50/70">
                       <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.productType}</td>
                       <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-800">{row.content}</td>
                       <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.unitPrice)}</td>
                       <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.count}</td>
-                                                                  <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(net)}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.miniProgram > 0 ? money(row.miniProgram) : '-'}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.scanPay > 0 ? money(row.scanPay) : '-'}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.offlinePay > 0 ? money(row.offlinePay) : '-'}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(net)}</td>
                     </tr>
                   );
                 })}
@@ -922,7 +719,10 @@ function OrderStatisticsReport() {
                 <tr className="bg-slate-50 text-sm font-black text-slate-900">
                   <td className="px-3 py-3" colSpan={3}>合计</td>
                   <td className="px-3 py-3 text-right tabular-nums">{totals.count}</td>
-                                                      <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.miniProgram, 0))}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.scanPay, 0))}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.offlinePay, 0))}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -987,11 +787,13 @@ function SimpleRevenueDashboard({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Segmented value={period} customRange={customRange} onChange={onPeriodChange} onCustomRangeChange={onCustomRangeChange} />
-          <div className="mt-1.5 text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}</div>
+        <div className="flex flex-wrap items-start gap-3">
+          <div>
+            <Segmented value={period} customRange={customRange} onChange={onPeriodChange} onCustomRangeChange={onCustomRangeChange} />
+            <div className="mt-1.5 text-xs font-semibold text-slate-500">统计区间：{activePeriod.range}</div>
+          </div>
+          <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
         </div>
-        <SelectBox icon={Building2} value={store} onChange={(value) => onStoreChange(value as StoreId)} options={stores} />
       </div>
 
       <SectionIntro title="营收概况" />
