@@ -163,17 +163,6 @@ type OrderSummaryRow = {
   refund: number;
 };
 
-type OrderCategorySummaryRow = {
-  id: string;
-  venue: string;
-  orderType: string;
-  productType: string;
-  category: string;
-  count: number;
-  amount: number;
-  refund: number;
-};
-
 const orderSummaryRows: OrderSummaryRow[] = [
   { id: 'OS001', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 8, refund: 0 },
   { id: 'OS002', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 2, refund: 0 },
@@ -825,48 +814,11 @@ function DesktopDashboard() {
 
 
 
-function getOrderItemCategory(row: OrderSummaryRow) {
-  if (row.productType === '次卡') {
-    return /10次卡|20次卡|30次卡|50次卡/.test(row.content) ? '多次卡' : '门票';
-  }
-  if (row.productType === '快捷商品') {
-    return /门票|儿童票|亲子套票/.test(row.content) ? '门票' : '泳具';
-  }
-  return '-';
-}
-
-function buildOrderCategorySummaryRows(rows: OrderSummaryRow[]): OrderCategorySummaryRow[] {
-  const grouped = new Map<string, OrderCategorySummaryRow>();
-  rows.forEach((row) => {
-    const category = getOrderItemCategory(row);
-    const key = [row.venue, row.orderType, row.productType, category].join('|');
-    const current = grouped.get(key);
-    const amount = row.unitPrice * row.count;
-    if (current) {
-      current.count += row.count;
-      current.amount += amount;
-      current.refund += row.refund;
-    } else {
-      grouped.set(key, {
-        id: key,
-        venue: row.venue,
-        orderType: row.orderType,
-        productType: row.productType,
-        category,
-        count: row.count,
-        amount,
-        refund: row.refund,
-      });
-    }
-  });
-  return Array.from(grouped.values());
-}
 
 function OrderStatisticsReport() {
   const [period, setPeriod] = useState<Period>('today');
   const [customRange, setCustomRange] = useState<CustomDateRange>({ start: '2026-06-29', end: '2026-06-29' });
   const [activeTab, setActiveTab] = useState<'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard'>('all');
-  const [summaryMode, setSummaryMode] = useState<'detail' | 'category'>('detail');
   const [page, setPage] = useState(1);
   const rows = useMemo(() => orderSummaryRows.filter((row) => {
     if (activeTab === 'passCard') return row.productType === '次卡';
@@ -889,13 +841,11 @@ function OrderStatisticsReport() {
     ),
     [rows],
   );
-  const categoryRows = useMemo(() => buildOrderCategorySummaryRows(rows), [rows]);
-  const rowCount = summaryMode === 'detail' ? rows.length : categoryRows.length;
+  const rowCount = rows.length;
   const pageSize = 10;
   const totalPages = Math.max(Math.ceil(rowCount / pageSize), 1);
   const currentPage = Math.min(page, totalPages);
   const pagedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const pagedCategoryRows = categoryRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="space-y-4">
@@ -918,23 +868,9 @@ function OrderStatisticsReport() {
         </button>
       </div>
 
-      <Panel title="订单汇总表" icon={ReceiptText}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
-            汇总维度
-            <select
-              value={summaryMode}
-              onChange={(event) => {
-                setSummaryMode(event.target.value as 'detail' | 'category');
-                setPage(1);
-              }}
-              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-400"
-            >
-              <option value="detail">商品名称</option>
-              <option value="category">项目分类汇总</option>
-            </select>
-          </label>
-          <div className="text-xs font-bold text-slate-400">按当前筛选结果统计</div>
+      <Panel title="订单统计表" icon={ReceiptText}>
+        <div className="mb-3 rounded-md bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600">
+          统计场馆：晋爵会海湾外馆
         </div>
         <div className="mb-3 flex flex-wrap gap-2">
           {[
@@ -957,20 +893,14 @@ function OrderStatisticsReport() {
           ))}
         </div>
         <div className="overflow-x-auto">
-          {summaryMode === 'detail' ? (
-            <table className="min-w-[1280px] w-full border-separate border-spacing-0 text-sm">
+          <table className="min-w-[760px] w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
-                  <th className="border-b border-slate-200 px-3 py-3">下单场馆</th>
-                  <th className="border-b border-slate-200 px-3 py-3">订单类型</th>
                   <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
-                  <th className="border-b border-slate-200 px-3 py-3">项目分类</th>
                   <th className="border-b border-slate-200 px-3 py-3">商品名称</th>
                   <th className="border-b border-slate-200 px-3 py-3 text-right">单价</th>
                   <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">订单金额</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">退款金额</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
+                                                      <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
                 </tr>
               </thead>
               <tbody>
@@ -979,69 +909,23 @@ function OrderStatisticsReport() {
                   const net = amount - row.refund;
                   return (
                     <tr key={row.id} className="bg-white hover:bg-slate-50/70">
-                      <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-700">{row.venue}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.orderType}</td>
                       <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.productType}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{getOrderItemCategory(row)}</td>
                       <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-800">{row.content}</td>
                       <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.unitPrice)}</td>
                       <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.count}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right font-bold tabular-nums text-slate-800">{money(amount)}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{row.refund > 0 ? money(row.refund) : '-'}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(net)}</td>
+                                                                  <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(net)}</td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
                 <tr className="bg-slate-50 text-sm font-black text-slate-900">
-                  <td className="px-3 py-3" colSpan={6}>合计</td>
+                  <td className="px-3 py-3" colSpan={3}>合计</td>
                   <td className="px-3 py-3 text-right tabular-nums">{totals.count}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.amount)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums text-rose-600">{money(totals.refund)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
+                                                      <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
                 </tr>
               </tfoot>
             </table>
-          ) : (
-            <table className="min-w-[960px] w-full border-separate border-spacing-0 text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
-                  <th className="border-b border-slate-200 px-3 py-3">下单场馆</th>
-                  <th className="border-b border-slate-200 px-3 py-3">订单类型</th>
-                  <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
-                  <th className="border-b border-slate-200 px-3 py-3">项目分类</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">订单金额</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">退款金额</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedCategoryRows.map((row) => (
-                  <tr key={row.id} className="bg-white hover:bg-slate-50/70">
-                    <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-700">{row.venue}</td>
-                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.orderType}</td>
-                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.productType}</td>
-                    <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-800">{row.category}</td>
-                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.count}</td>
-                    <td className="border-b border-slate-100 px-3 py-3 text-right font-bold tabular-nums text-slate-800">{money(row.amount)}</td>
-                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{row.refund > 0 ? money(row.refund) : '-'}</td>
-                    <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(row.amount - row.refund)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-50 text-sm font-black text-slate-900">
-                  <td className="px-3 py-3" colSpan={4}>合计</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{totals.count}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.amount)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums text-rose-600">{money(totals.refund)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          )}
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
           <div className="font-bold text-slate-500">
