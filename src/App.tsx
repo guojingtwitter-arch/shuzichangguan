@@ -440,57 +440,203 @@ function MobileReportPage({
     <div className="space-y-4">
       <div className="flex items-center justify-between pt-2">
         <button onClick={onBack} className="rounded-full bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm">返回</button>
-        <div className="text-base font-black">卡猫数字场馆</div>
+        <div className="text-base font-black">{titleMap[report]}</div>
+        <div className="w-12" />
+      </div>
+      <div className="rounded-2xl bg-white p-3 shadow-sm">
+        <div className="grid grid-cols-4 gap-2">
+          {periods.slice(0, 4).map((item) => (
+            <button key={item.id} onClick={() => onPeriodChange(item.id)} className={cn('h-9 rounded-xl text-xs font-black', period === item.id ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500')}>
+              {item.name}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 text-center text-xs font-bold text-slate-400">统计区间：{activePeriod.range}</div>
+      </div>
+      {report === 'revenue' && <MobileRevenueReport orders={orders} />}
+      {report === 'venue' && <MobileVenueReport orders={orders} />}
+      {report === 'course' && <MobileCourseReport />}
+      {report === 'recognition' && <MobileRecognitionReport />}
+      <div className="rounded-2xl bg-white px-4 py-3 text-center text-xs font-bold text-slate-400 shadow-sm">更多明细请前往电脑后台查看</div>
+    </div>
+  );
+}
+
+function MobileRevenueReport({ orders }: { orders: RevenueOrder[] }) {
+  const totals = summarize(orders);
+  const projectRows = orderProjectRows(groupBy(orders, 'project')).slice(0, 4);
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <MobileMetric title="经营发生额" value={money(totals.businessAmount)} tone />
+        <MobileMetric title="实收金额" value={money(totals.actualRevenue)} />
+      </div>
+      <MobileListCard title="销售项目">
+        {projectRows.map((row, index) => (
+          <div key={row.key}>
+            <MobileAmountRow rank={index + 1} label={projectMeta[row.key as Project]?.short ?? String(row.key)} value={row.total.businessAmount} total={totals.businessAmount} />
+          </div>
+        ))}
+      </MobileListCard>
+    </div>
+  );
+}
+
+function MobileVenueReport({ orders }: { orders: RevenueOrder[] }) {
+  const venueOrders = orders.filter((order) => order.project === 'venue');
+  const totals = summarize(venueOrders);
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <MobileMetric title="场地营收" value={money(totals.businessAmount)} tone />
+        <MobileMetric title="预订订单数" value={String(totals.orders) + ' 单'} />
+      </div>
+      <MobileListCard title="场地概览">
+        <MobileAmountRow label="小程序" value={summarize(venueOrders.filter((order) => order.source === 'miniProgram')).businessAmount} total={totals.businessAmount} />
+        <MobileAmountRow label="收银台" value={summarize(venueOrders.filter((order) => order.source === 'cashier')).businessAmount} total={totals.businessAmount} />
+      </MobileListCard>
+    </div>
+  );
+}
+
+function MobileCourseReport() {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <MobileMetric title="售课金额" value="¥36,800" tone />
+        <MobileMetric title="消课课时" value="126 课时" />
+      </div>
+      <MobileListCard title="课程概览">
+        <MobileAmountRow label="私教课" value={22800} total={36800} />
+        <MobileAmountRow label="团课" value={14000} total={36800} />
+      </MobileListCard>
+    </div>
+  );
+}
+
+function MobileRecognitionReport() {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <MobileMetric title="确认收入" value="¥58,600" tone />
+        <MobileMetric title="待确认收入" value="¥326,000" />
+      </div>
+      <MobileListCard title="收入类型">
+        <MobileAmountRow label="次/时间卡" value={28600} total={58600} />
+        <MobileAmountRow label="课程卡" value={18800} total={58600} />
+      </MobileListCard>
+    </div>
+  );
+}
+
+function MobileMetric({ title, value, tone }: { title: string; value: string; tone?: boolean }) {
+  return (
+    <div className={cn('rounded-2xl p-4 shadow-sm', tone ? 'bg-blue-500 text-white' : 'bg-white text-slate-900')}>
+      <div className={cn('text-xs font-bold', tone ? 'text-white/75' : 'text-slate-500')}>{title}</div>
+      <div className="mt-3 text-xl font-black tracking-normal">{value}</div>
+    </div>
+  );
+}
+
+function MobileListCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl bg-white p-4 shadow-sm">
+      <div className="text-base font-black">{title}</div>
+      <div className="mt-3 space-y-3">{children}</div>
+    </section>
+  );
+}
+
+function MobileAmountRow({ rank, label, value, total, note }: { rank?: number; label: string; value: number; total: number; note?: string }) {
+  const percent = total > 0 ? Math.max((value / total) * 100, 0) : 0;
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {rank && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-blue-600 shadow-sm">{rank}</span>}
+        <div className="min-w-0">
+          <div className="truncate text-sm font-black text-slate-800">{label}</div>
+          {note && <div className="mt-0.5 truncate text-xs font-bold text-slate-400">{note}</div>}
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <div className="text-sm font-black tabular-nums text-slate-900">{money(value)}</div>
+        <div className="mt-0.5 text-xs font-bold text-slate-400">占比 {percent.toFixed(1)}%</div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const search = typeof window === 'undefined' ? '' : window.location.search;
+  const isMobilePreview = new URLSearchParams(search).get('view') === 'mobile';
+  return isMobilePreview ? <MobileManagerPreview /> : <DesktopDashboard />;
+}
+
+function DesktopDashboard() {
+  const [dashboard, setDashboard] = useState<DashboardType>('simpleRevenue');
+  const [period, setPeriod] = useState<Period>('today');
+  const [store, setStore] = useState<StoreId>('all');
+  const [tab, setTab] = useState<Tab>('project');
+  const [selectedProject, setSelectedProject] = useState<Project>('passCard');
+  const [customRange, setCustomRange] = useState<CustomDateRange>({ start: '2026-05-24', end: '2026-06-03' });
+
+  const filteredOrders = useMemo(() => {
+    const bucket = period === 'custom' ? ['today', 'week'] : [period];
+    return orders.filter((order) => {
+      const inScope = dashboard === 'venue' || dashboard === 'simpleRevenue' || dashboard === 'venueBooking' || (order.project !== 'venue' && order.project !== 'storedCard');
+      return inScope && bucket.includes(order.dateBucket) && (store === 'all' || order.store === store);
+    });
+  }, [dashboard, period, store]);
+
+  const totals = useMemo(() => summarize(filteredOrders), [filteredOrders]);
+  const projectRows = useMemo(() => orderProjectRows(groupBy(filteredOrders, 'project')), [filteredOrders]);
+  const sourceRows = useMemo(() => groupBy(filteredOrders, 'source'), [filteredOrders]);
+  const paymentRows = useMemo(() => groupBy(filteredOrders, 'payment'), [filteredOrders]);
+  const storeRows = useMemo(() => groupBy(filteredOrders, 'store'), [filteredOrders]);
+  const activePeriod = periods.find((item) => item.id === period)!;
+  const miniProgramRevenue = useMemo(() => summarize(filteredOrders.filter((order) => order.source === 'miniProgram')).actualRevenue, [filteredOrders]);
+  const cashierRevenue = useMemo(() => summarize(filteredOrders.filter((order) => order.source === 'cashier')).actualRevenue, [filteredOrders]);
+  const navItems = [
+    { id: 'simpleRevenue', label: '营收报表', icon: CircleDollarSign },
+    { id: 'venueBooking', label: '场地预订报表', icon: CalendarDays },
+    { id: 'courseTraining', label: '课程培训报表', icon: TicketCheck },
+    { id: 'recognition', label: '确认收入报表', icon: ReceiptText },
+    { id: 'orderStats', label: '订单统计', icon: ReceiptText },
+  ] satisfies { id: DashboardType; label: string; icon: typeof Store }[];
+
+  return (
+    <div className="min-h-screen bg-[#f5f7fb] text-slate-800">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white lg:block">
+        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-600 text-white"><Building2 size={21} /></div>
+          <div>
+            <div className="text-base font-black">卡猫数字场馆</div>
             <div className="text-xs font-semibold text-slate-500">经营统计看板</div>
           </div>
         </div>
         <nav className="px-3 py-4">
-          {[
-            { id: 'simpleRevenue', label: '营收报表', icon: CircleDollarSign },
-            { id: 'venueBooking', label: '场地预订报表', icon: CalendarDays },
-            { id: 'courseTraining', label: '课程培训报表', icon: TicketCheck },
-            { id: 'recognition', label: '确认收入报表', icon: ReceiptText },
-            { id: 'orderStats', label: '订单统计', icon: ReceiptText },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setDashboard(item.id as DashboardType);
-                setSelectedProject('passCard');
-              }}
-              className={cn('mb-1 flex h-11 w-full items-center gap-3 rounded-md px-3 text-sm font-bold', dashboard === item.id ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100' : 'text-slate-600 hover:bg-slate-100')}
-            >
+          {navItems.map((item) => (
+            <button key={item.id} onClick={() => { setDashboard(item.id); setSelectedProject('passCard'); }} className={cn('mb-1 flex h-11 w-full items-center gap-3 rounded-md px-3 text-sm font-bold', dashboard === item.id ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100' : 'text-slate-600 hover:bg-slate-100')}>
               <item.icon size={18} />
               {item.label}
             </button>
           ))}
         </nav>
       </aside>
-
       <main className="lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
             <div>
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                <Store size={14} />
-                管理后台 / 统计报表
-              </div>
-              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'orderStats' ? '订单统计' : dashboard === 'recognition' ? '确认收入报表' : dashboard === 'courseTraining' ? '课程培训报表' : dashboard === 'venueBooking' ? '场地预订报表' : dashboard === 'simpleRevenue' ? '营收报表' : '收入分析看板'}</h1>
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-500"><Store size={14} />管理后台 / 统计报表</div>
+              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'orderStats' ? '订单统计' : dashboard === 'recognition' ? '确认收入报表' : dashboard === 'courseTraining' ? '课程培训报表' : dashboard === 'venueBooking' ? '场地预订报表' : '营收报表'}</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <a href="?view=mobile" className="flex h-10 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
-                手机端预览
-              </a>
-              <IconAction label="刷新">
-                <RefreshCw size={17} />
-              </IconAction>
-              <IconAction label="导出">
-                <Download size={17} />
-              </IconAction>
+              <a href="?view=mobile" className="flex h-10 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">手机端预览</a>
+              <IconAction label="刷新"><RefreshCw size={17} /></IconAction>
+              <IconAction label="导出"><Download size={17} /></IconAction>
             </div>
           </div>
         </header>
-
         <section className="px-4 py-4 lg:px-6">
           {dashboard === 'orderStats' ? (
             <OrderStatisticsReport />
@@ -504,82 +650,34 @@ function MobileReportPage({
             <CourseTrainingReport period={period} customRange={customRange} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} />
           ) : (
             <>
-          <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
-            <Segmented value={period} customRange={customRange} onChange={setPeriod} onCustomRangeChange={setCustomRange} />
-            <SelectBox icon={Building2} value={store} onChange={(value) => setStore(value as StoreId)} options={stores} />
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-            <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，仅统计支付成功 / 核销完成订单，不含撤单、作废订单。</div>
-            <div className="rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-              平台营收金额 = 销售总额 - 退款金额 - 储值卡/余额支付；美团、抖音等第三方团购核销计入经营发生口径。
-            </div>
-          </div>
-
-          <section className={cn('mt-4 grid gap-2.5', dashboard === 'fitness' ? 'md:grid-cols-2 xl:grid-cols-5' : 'xl:grid-cols-[1.4fr_1fr]')}>
-            {dashboard === 'fitness' ? (
-              <>
-                <MetricCard title="平台营收金额" value={money(totals.actualRevenue)} helper="经营发生口径" />
-                <MetricCard title="小程序平台收款" value={money(miniProgramRevenue)} helper="小程序平台收款" />
-                <MetricCard title="收银台平台收款" value={money(cashierRevenue)} helper="收银台平台收款" />
-                <MetricCard title="美团核销" value={money(totals.meituan)} helper="第三方团购核销" />
-                <MetricCard title="抖音核销" value={money(totals.douyin)} helper="第三方团购核销" />
-              </>
-            ) : (
-              <>
+              <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
+                <Segmented value={period} customRange={customRange} onChange={setPeriod} onCustomRangeChange={setCustomRange} />
+                <SelectBox icon={Building2} value={store} onChange={(value) => setStore(value as StoreId)} options={stores} />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <div className="font-semibold text-slate-500">统计区间：{activePeriod.range}，仅统计支付成功 / 核销完成订单，不含撤单、作废订单。</div>
+              </div>
+              <section className={cn('mt-4 grid gap-2.5', dashboard === 'fitness' ? 'md:grid-cols-2 xl:grid-cols-5' : 'xl:grid-cols-[1.4fr_1fr]')}>
                 <RevenueTotalCard total={totals.actualRevenue} miniProgramRevenue={miniProgramRevenue} cashierRevenue={cashierRevenue} meituanRevenue={totals.meituan} douyinRevenue={totals.douyin} />
                 <SalesBreakdownCards sales={totals.sales} storedBalance={totals.storedBalance} actualRevenue={totals.actualRevenue} refund={totals.refund} />
-              </>
-            )}
-          </section>
-
-          <section className="mt-4">
-            <Panel title="项目统计" icon={BarChart3} subtitle="按经营发生额统计">
-              <ProjectSummary rows={projectRows} orders={filteredOrders} selectedProject={selectedProject} onSelectProject={setSelectedProject} dashboard={dashboard} />
-            </Panel>
-          </section>
-
-          <section className="mt-4">
-            <Panel title="多维明细" icon={ArrowDownToLine}>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: 'project', name: '销售项目' },
-                    { id: 'source', name: '销售渠道' },
-                    { id: 'payment', name: '收款方式' },
-                    { id: 'store', name: '门店对比' },
-                  ].map((item) => (
-                    <button key={item.id} onClick={() => setTab(item.id as Tab)} className={cn('h-9 rounded-md px-3 text-sm font-bold', tab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600')}>
-                      {item.name}
-                    </button>
-                  ))}
-                </div>
-                <button className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
-                  <Download size={15} />
-                  导出
-                </button>
-              </div>
-              {tab === 'project' && <DataTable rows={projectRows} type="project" total={totals.businessAmount} dashboard={dashboard} />}
-              {tab === 'source' && <DataTable rows={sourceRows} type="source" total={totals.businessAmount} dashboard={dashboard} />}
-              {tab === 'payment' && <DataTable rows={paymentRows} type="payment" total={totals.businessAmount} dashboard={dashboard} />}
-              {tab === 'store' && <DataTable rows={storeRows} type="store" total={totals.businessAmount} dashboard={dashboard} />}
-            </Panel>
-          </section>
-
-          <section className="mt-4">
-            <div className="rounded-lg border border-slate-100 bg-white px-3.5 py-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="mr-2 flex items-center gap-2 text-sm font-black text-slate-800">
-                  <ReceiptText size={16} />
-                  统计口径说明
-                </div>
-                <Definition label="储值卡充值营收" value={`${money(totals.storedCardRevenue)}，按实收金额`} />
-                <Definition label="美团核销额" value={`${money(totals.meituan)}，第三方团购`} />
-                <Definition label="抖音核销额" value={`${money(totals.douyin)}，第三方团购`} />
-                <Definition label="商品销售" value="含直接收款" />
-              </div>
-            </div>
-          </section>
+              </section>
+              <section className="mt-4"><Panel title="项目统计" icon={BarChart3} subtitle="按经营发生额统计"><ProjectSummary rows={projectRows} orders={filteredOrders} selectedProject={selectedProject} onSelectProject={setSelectedProject} dashboard={dashboard} /></Panel></section>
+              <section className="mt-4">
+                <Panel title="多维明细" icon={ArrowDownToLine}>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      {[{ id: 'project', name: '销售项目' }, { id: 'source', name: '销售渠道' }, { id: 'payment', name: '收款方式' }, { id: 'store', name: '门店对比' }].map((item) => (
+                        <button key={item.id} onClick={() => setTab(item.id as Tab)} className={cn('h-9 rounded-md px-3 text-sm font-bold', tab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600')}>{item.name}</button>
+                      ))}
+                    </div>
+                    <button className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600"><Download size={15} />导出</button>
+                  </div>
+                  {tab === 'project' && <DataTable rows={projectRows} type="project" total={totals.businessAmount} dashboard={dashboard} />}
+                  {tab === 'source' && <DataTable rows={sourceRows} type="source" total={totals.businessAmount} dashboard={dashboard} />}
+                  {tab === 'payment' && <DataTable rows={paymentRows} type="payment" total={totals.businessAmount} dashboard={dashboard} />}
+                  {tab === 'store' && <DataTable rows={storeRows} type="store" total={totals.businessAmount} dashboard={dashboard} />}
+                </Panel>
+              </section>
             </>
           )}
         </section>
@@ -587,9 +685,6 @@ function MobileReportPage({
     </div>
   );
 }
-
-
-
 
 function OrderStatisticsReport() {
   const [period, setPeriod] = useState<Period>('today');
@@ -605,20 +700,11 @@ function OrderStatisticsReport() {
     if (activeTab === 'courseCard') return row.productType === '课程卡';
     return true;
   }), [activeTab, selectedVenue]);
-  const totals = useMemo(
-    () => rows.reduce(
-      (acc, row) => {
-        const amount = row.unitPrice * row.count;
-        acc.count += row.count;
-        acc.amount += amount;
-        acc.refund += row.refund;
-        acc.net += row.miniProgram + row.scanPay + row.offlinePay;
-        return acc;
-      },
-      { count: 0, amount: 0, refund: 0, net: 0 },
-    ),
-    [rows],
-  );
+  const totals = useMemo(() => rows.reduce((acc, row) => {
+    acc.count += row.count;
+    acc.net += row.miniProgram + row.scanPay + row.offlinePay;
+    return acc;
+  }, { count: 0, net: 0 }), [rows]);
   const rowCount = rows.length;
   const pageSize = 10;
   const totalPages = Math.max(Math.ceil(rowCount / pageSize), 1);
@@ -629,123 +715,70 @@ function OrderStatisticsReport() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div className="flex flex-wrap items-center gap-3">
-          <Segmented
-            value={period}
-            customRange={customRange}
-            onChange={(nextPeriod) => {
-              setPeriod(nextPeriod);
-              setPage(1);
-            }}
-            onCustomRangeChange={(nextRange) => {
-              setCustomRange(nextRange);
-              setPage(1);
-            }}
-          />
+          <Segmented value={period} customRange={customRange} onChange={(nextPeriod) => { setPeriod(nextPeriod); setPage(1); }} onCustomRangeChange={(nextRange) => { setCustomRange(nextRange); setPage(1); }} />
           <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
             统计场馆
-            <select
-              value={selectedVenue}
-              onChange={(event) => {
-                setSelectedVenue(event.target.value);
-                setPage(1);
-              }}
-              className="h-8 min-w-[150px] bg-transparent text-sm font-bold text-slate-800 outline-none"
-            >
-              {orderStatsVenueOptions.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
-              ))}
+            <select value={selectedVenue} onChange={(event) => { setSelectedVenue(event.target.value); setPage(1); }} className="h-8 min-w-[150px] bg-transparent text-sm font-bold text-slate-800 outline-none">
+              {orderStatsVenueOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </label>
         </div>
-        <button className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
-          <Download size={15} />
-          导出
-        </button>
+        <button className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600"><Download size={15} />导出</button>
       </div>
-
       <Panel title="订单统计表" icon={ReceiptText}>
         <div className="mb-3 flex flex-wrap gap-2">
-          {[
-            { id: 'all', name: '全部' },
-            { id: 'passCard', name: '次卡统计' },
-            { id: 'timeCard', name: '时间卡统计' },
-            { id: 'goods', name: '商品销售统计' },
-            { id: 'courseCard', name: '课程卡统计' },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActiveTab(item.id as 'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard');
-                setPage(1);
-              }}
-              className={cn('h-9 rounded-md px-3 text-sm font-bold', activeTab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}
-            >
-              {item.name}
-            </button>
+          {[{ id: 'all', name: '全部' }, { id: 'passCard', name: '次卡统计' }, { id: 'timeCard', name: '时间卡统计' }, { id: 'goods', name: '商品销售统计' }, { id: 'courseCard', name: '课程卡统计' }].map((item) => (
+            <button key={item.id} onClick={() => { setActiveTab(item.id as 'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard'); setPage(1); }} className={cn('h-9 rounded-md px-3 text-sm font-bold', activeTab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>{item.name}</button>
           ))}
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[1080px] w-full border-separate border-spacing-0 text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
-                  <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
-                  <th className="border-b border-slate-200 px-3 py-3">订单内容</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">单价</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">小程序收款</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">商户/用户扫码</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">线下付款/对公转账</th>
-                  <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedRows.map((row) => {
-                  const net = row.miniProgram + row.scanPay + row.offlinePay;
-                  return (
-                    <tr key={row.id} className="bg-white hover:bg-slate-50/70">
-                      <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.productType}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-800">{row.content}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.unitPrice)}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.count}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.miniProgram > 0 ? money(row.miniProgram) : '-'}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.scanPay > 0 ? money(row.scanPay) : '-'}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.offlinePay > 0 ? money(row.offlinePay) : '-'}</td>
-                      <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(net)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-50 text-sm font-black text-slate-900">
-                  <td className="px-3 py-3" colSpan={3}>合计</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{totals.count}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.miniProgram, 0))}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.scanPay, 0))}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.offlinePay, 0))}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
-                </tr>
-              </tfoot>
-            </table>
+            <thead>
+              <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
+                <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
+                <th className="border-b border-slate-200 px-3 py-3">订单内容</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">单价</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">小程序收款</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">商户/用户扫码</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">线下付款/对公转账</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedRows.map((row) => {
+                const net = row.miniProgram + row.scanPay + row.offlinePay;
+                return (
+                  <tr key={row.id} className="bg-white hover:bg-slate-50/70">
+                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.productType}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-800">{row.content}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.unitPrice)}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.count}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.miniProgram > 0 ? money(row.miniProgram) : '-'}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.scanPay > 0 ? money(row.scanPay) : '-'}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.offlinePay > 0 ? money(row.offlinePay) : '-'}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(net)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="bg-slate-50 text-sm font-black text-slate-900">
+                <td className="px-3 py-3" colSpan={3}>合计</td>
+                <td className="px-3 py-3 text-right tabular-nums">{totals.count}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.miniProgram, 0))}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.scanPay, 0))}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.offlinePay, 0))}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
-          <div className="font-bold text-slate-500">
-            共 {rowCount} 条，每页 10 条，当前第 {currentPage} / {totalPages} 页
-          </div>
+          <div className="font-bold text-slate-500">共 {rowCount} 条，每页 10 条，当前第 {currentPage} / {totalPages} 页</div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage(Math.max(currentPage - 1, 1))}
-              disabled={currentPage <= 1}
-              className="h-9 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              上一页
-            </button>
-            <button
-              onClick={() => setPage(Math.min(currentPage + 1, totalPages))}
-              disabled={currentPage >= totalPages}
-              className="h-9 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              下一页
-            </button>
+            <button onClick={() => setPage(Math.max(currentPage - 1, 1))} disabled={currentPage <= 1} className="h-9 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">上一页</button>
+            <button onClick={() => setPage(Math.min(currentPage + 1, totalPages))} disabled={currentPage >= totalPages} className="h-9 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">下一页</button>
           </div>
         </div>
       </Panel>
