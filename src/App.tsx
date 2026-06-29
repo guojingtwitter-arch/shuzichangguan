@@ -930,7 +930,7 @@ function OrderStatisticsReport() {
               }}
               className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-400"
             >
-              <option value="detail">明细</option>
+              <option value="detail">商品名称</option>
               <option value="category">项目分类汇总</option>
             </select>
           </label>
@@ -965,7 +965,7 @@ function OrderStatisticsReport() {
                   <th className="border-b border-slate-200 px-3 py-3">订单类型</th>
                   <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
                   <th className="border-b border-slate-200 px-3 py-3">项目分类</th>
-                  <th className="border-b border-slate-200 px-3 py-3">订单内容</th>
+                  <th className="border-b border-slate-200 px-3 py-3">商品名称</th>
                   <th className="border-b border-slate-200 px-3 py-3 text-right">单价</th>
                   <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
                   <th className="border-b border-slate-200 px-3 py-3 text-right">订单金额</th>
