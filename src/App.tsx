@@ -164,31 +164,32 @@ type OrderSummaryRow = {
   miniProgram: number;
   scanPay: number;
   offlinePay: number;
+  corporatePay: number;
 };
 
 const orderStatsVenueOptions = [
   { id: 'all', name: '全部门店' },
   { id: '晋爵会海湾外馆', name: '晋爵会海湾外馆' },
-] satisfies { id: 'all' | string; name: string }[];
+] satisfies { id: string; name: string }[];
 
 const orderSummaryRows: OrderSummaryRow[] = [
-  { id: 'OS001', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 8, refund: 0, miniProgram: 144, scanPay: 56, offlinePay: 0 },
-  { id: 'OS002', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 2, refund: 0, miniProgram: 0, scanPay: 34, offlinePay: 16 },
-  { id: 'OS003', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳50次卡', unitPrice: 950, count: 3, refund: 950, miniProgram: 1368, scanPay: 532, offlinePay: 0 },
-  { id: 'OS004', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳门票', unitPrice: 32, count: 16, refund: 64, miniProgram: 323, scanPay: 125, offlinePay: 0 },
-  { id: 'OS005', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳门票', unitPrice: 32, count: 5, refund: 0, miniProgram: 0, scanPay: 109, offlinePay: 51 },
-  { id: 'OS006', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 7, refund: 22, miniProgram: 95, scanPay: 37, offlinePay: 0 },
-  { id: 'OS007', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 3, refund: 0, miniProgram: 0, scanPay: 45, offlinePay: 21 },
-  { id: 'OS008', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 6, refund: 0, miniProgram: 207, scanPay: 81, offlinePay: 0 },
-  { id: 'OS009', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 2, refund: 48, miniProgram: 0, scanPay: 33, offlinePay: 15 },
-  { id: 'OS010', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳10次卡', unitPrice: 260, count: 2, refund: 0, miniProgram: 374, scanPay: 146, offlinePay: 0 },
-  { id: 'OS011', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳20次卡', unitPrice: 480, count: 1, refund: 0, miniProgram: 346, scanPay: 134, offlinePay: 0 },
-  { id: 'OS012', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳30次卡', unitPrice: 660, count: 2, refund: 0, miniProgram: 950, scanPay: 370, offlinePay: 0 },
-  { id: 'OS013', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳50次卡', unitPrice: 1050, count: 1, refund: 0, miniProgram: 756, scanPay: 294, offlinePay: 0 },
-  { id: 'OS014', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '沐浴露', unitPrice: 1, count: 12, refund: 0, miniProgram: 0, scanPay: 8, offlinePay: 4 },
-  { id: 'OS015', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '一次性浴巾', unitPrice: 5, count: 9, refund: 0, miniProgram: 0, scanPay: 31, offlinePay: 14 },
-  { id: 'OS016', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '泳圈', unitPrice: 35, count: 2, refund: 0, miniProgram: 0, scanPay: 48, offlinePay: 22 },
-  { id: 'OS017', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '英发2800泳镜', unitPrice: 129, count: 1, refund: 0, miniProgram: 0, scanPay: 88, offlinePay: 41 },
+  { id: 'OS001', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 8, refund: 0, miniProgram: 144, scanPay: 56, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS002', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 2, refund: 0, miniProgram: 0, scanPay: 34, offlinePay: 10, corporatePay: 6 },
+  { id: 'OS003', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳50次卡', unitPrice: 950, count: 3, refund: 950, miniProgram: 1368, scanPay: 532, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS004', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳门票', unitPrice: 32, count: 16, refund: 64, miniProgram: 323, scanPay: 125, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS005', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳门票', unitPrice: 32, count: 5, refund: 0, miniProgram: 0, scanPay: 109, offlinePay: 31, corporatePay: 20 },
+  { id: 'OS006', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 7, refund: 22, miniProgram: 95, scanPay: 37, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS007', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 3, refund: 0, miniProgram: 0, scanPay: 45, offlinePay: 13, corporatePay: 8 },
+  { id: 'OS008', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 6, refund: 0, miniProgram: 207, scanPay: 81, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS009', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 2, refund: 48, miniProgram: 0, scanPay: 33, offlinePay: 9, corporatePay: 6 },
+  { id: 'OS010', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳10次卡', unitPrice: 260, count: 2, refund: 0, miniProgram: 374, scanPay: 146, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS011', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳20次卡', unitPrice: 480, count: 1, refund: 0, miniProgram: 346, scanPay: 134, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS012', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳30次卡', unitPrice: 660, count: 2, refund: 0, miniProgram: 950, scanPay: 370, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS013', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳50次卡', unitPrice: 1050, count: 1, refund: 0, miniProgram: 756, scanPay: 294, offlinePay: 0, corporatePay: 0 },
+  { id: 'OS014', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '沐浴露', unitPrice: 1, count: 12, refund: 0, miniProgram: 0, scanPay: 8, offlinePay: 3, corporatePay: 1 },
+  { id: 'OS015', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '一次性浴巾', unitPrice: 5, count: 9, refund: 0, miniProgram: 0, scanPay: 31, offlinePay: 9, corporatePay: 5 },
+  { id: 'OS016', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '泳圈', unitPrice: 35, count: 2, refund: 0, miniProgram: 0, scanPay: 48, offlinePay: 13, corporatePay: 9 },
+  { id: 'OS017', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '英发2800泳镜', unitPrice: 129, count: 1, refund: 0, miniProgram: 0, scanPay: 88, offlinePay: 25, corporatePay: 16 },
 ];
 
 const projectDetailCatalog: Record<Project, { name: string; weight: number }[]> = {
@@ -702,9 +703,13 @@ function OrderStatisticsReport() {
   }), [activeTab, selectedVenue]);
   const totals = useMemo(() => rows.reduce((acc, row) => {
     acc.count += row.count;
-    acc.net += row.miniProgram + row.scanPay + row.offlinePay;
+    acc.miniProgram += row.miniProgram;
+    acc.scanPay += row.scanPay;
+    acc.offlinePay += row.offlinePay;
+    acc.corporatePay += row.corporatePay;
+    acc.net += row.miniProgram + row.scanPay + row.offlinePay + row.corporatePay;
     return acc;
-  }, { count: 0, net: 0 }), [rows]);
+  }, { count: 0, miniProgram: 0, scanPay: 0, offlinePay: 0, corporatePay: 0, net: 0 }), [rows]);
   const rowCount = rows.length;
   const pageSize = 10;
   const totalPages = Math.max(Math.ceil(rowCount / pageSize), 1);
@@ -716,23 +721,24 @@ function OrderStatisticsReport() {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div className="flex flex-wrap items-center gap-3">
           <Segmented value={period} customRange={customRange} onChange={(nextPeriod) => { setPeriod(nextPeriod); setPage(1); }} onCustomRangeChange={(nextRange) => { setCustomRange(nextRange); setPage(1); }} />
-          <label className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
-            统计场馆
-            <select value={selectedVenue} onChange={(event) => { setSelectedVenue(event.target.value); setPage(1); }} className="h-8 min-w-[150px] bg-transparent text-sm font-bold text-slate-800 outline-none">
-              {orderStatsVenueOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-          </label>
+          <SelectBox icon={Building2} value={selectedVenue} onChange={(value) => { setSelectedVenue(value); setPage(1); }} options={orderStatsVenueOptions} />
         </div>
         <button className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600"><Download size={15} />导出</button>
       </div>
       <Panel title="订单统计表" icon={ReceiptText}>
         <div className="mb-3 flex flex-wrap gap-2">
-          {[{ id: 'all', name: '全部' }, { id: 'passCard', name: '次卡统计' }, { id: 'timeCard', name: '时间卡统计' }, { id: 'goods', name: '商品销售统计' }, { id: 'courseCard', name: '课程卡统计' }].map((item) => (
+          {[
+            { id: 'all', name: '全部' },
+            { id: 'passCard', name: '次卡统计' },
+            { id: 'timeCard', name: '时间卡统计' },
+            { id: 'goods', name: '商品销售统计' },
+            { id: 'courseCard', name: '课程卡统计' },
+          ].map((item) => (
             <button key={item.id} onClick={() => { setActiveTab(item.id as 'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard'); setPage(1); }} className={cn('h-9 rounded-md px-3 text-sm font-bold', activeTab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>{item.name}</button>
           ))}
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-[1080px] w-full border-separate border-spacing-0 text-sm">
+          <table className="min-w-[1180px] w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
                 <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
@@ -741,13 +747,14 @@ function OrderStatisticsReport() {
                 <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
                 <th className="border-b border-slate-200 px-3 py-3 text-right">小程序收款</th>
                 <th className="border-b border-slate-200 px-3 py-3 text-right">商户/用户扫码</th>
-                <th className="border-b border-slate-200 px-3 py-3 text-right">线下付款/对公转账</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">线下付款</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-right">对公转账</th>
                 <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
               </tr>
             </thead>
             <tbody>
               {pagedRows.map((row) => {
-                const net = row.miniProgram + row.scanPay + row.offlinePay;
+                const net = row.miniProgram + row.scanPay + row.offlinePay + row.corporatePay;
                 return (
                   <tr key={row.id} className="bg-white hover:bg-slate-50/70">
                     <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.productType}</td>
@@ -757,6 +764,7 @@ function OrderStatisticsReport() {
                     <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.miniProgram > 0 ? money(row.miniProgram) : '-'}</td>
                     <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.scanPay > 0 ? money(row.scanPay) : '-'}</td>
                     <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.offlinePay > 0 ? money(row.offlinePay) : '-'}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.corporatePay > 0 ? money(row.corporatePay) : '-'}</td>
                     <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(net)}</td>
                   </tr>
                 );
@@ -766,9 +774,10 @@ function OrderStatisticsReport() {
               <tr className="bg-slate-50 text-sm font-black text-slate-900">
                 <td className="px-3 py-3" colSpan={3}>合计</td>
                 <td className="px-3 py-3 text-right tabular-nums">{totals.count}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.miniProgram, 0))}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.scanPay, 0))}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{money(rows.reduce((sum, row) => sum + row.offlinePay, 0))}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(totals.miniProgram)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(totals.scanPay)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(totals.offlinePay)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{money(totals.corporatePay)}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
               </tr>
             </tfoot>
