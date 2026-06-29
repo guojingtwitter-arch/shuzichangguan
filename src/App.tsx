@@ -35,7 +35,7 @@ type StoreId =
   | 'xianglu'
   | 'wanda';
 type Tab = 'project' | 'source' | 'payment' | 'store';
-type DashboardType = 'venue' | 'simpleRevenue' | 'venueBooking' | 'courseTraining' | 'recognition' | 'fitness';
+type DashboardType = 'venue' | 'simpleRevenue' | 'venueBooking' | 'courseTraining' | 'recognition' | 'orderStats' | 'fitness';
 type Project = 'venue' | 'storedCard' | 'courseCard' | 'passCard' | 'goods';
 type Source = 'miniProgram' | 'cashier' | 'meituan' | 'douyin';
 type Payment = 'wechat' | 'payCode' | 'storedBalance' | 'offline' | 'corporate' | 'free' | 'meituanGroup' | 'douyinGroup';
@@ -149,6 +149,49 @@ const orders: RevenueOrder[] = [
   { id: 'M005', store: 'north', project: 'goods', source: 'cashier', payment: 'payCode', receivable: 39000, discount: 1100, paid: 37900, orders: 691, dateBucket: 'month' },
   { id: 'M006', store: 'river', project: 'passCard', source: 'meituan', payment: 'meituanGroup', receivable: 76000, discount: 5200, paid: 70800, refund: 3600, orders: 298, dateBucket: 'month' },
   { id: 'M007', store: 'east', project: 'courseCard', source: 'douyin', payment: 'douyinGroup', receivable: 62000, discount: 4200, paid: 57800, orders: 233, dateBucket: 'month' },
+];
+
+
+type OrderSummaryRow = {
+  id: string;
+  venue: string;
+  orderType: string;
+  productType: string;
+  content: string;
+  unitPrice: number;
+  count: number;
+  refund: number;
+};
+
+type OrderCategorySummaryRow = {
+  id: string;
+  venue: string;
+  orderType: string;
+  productType: string;
+  category: string;
+  count: number;
+  amount: number;
+  refund: number;
+};
+
+const orderSummaryRows: OrderSummaryRow[] = [
+  { id: 'OS001', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 8, refund: 0 },
+  { id: 'OS002', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '开业特惠海湾外馆游泳门票【限工作日指定时间使用】', unitPrice: 25, count: 2, refund: 0 },
+  { id: 'OS003', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '开业特惠海湾外馆游泳50次卡', unitPrice: 950, count: 3, refund: 950 },
+  { id: 'OS004', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳门票', unitPrice: 32, count: 16, refund: 64 },
+  { id: 'OS005', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳门票', unitPrice: 32, count: 5, refund: 0 },
+  { id: 'OS006', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 7, refund: 22 },
+  { id: 'OS007', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳儿童票', unitPrice: 22, count: 3, refund: 0 },
+  { id: 'OS008', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 6, refund: 0 },
+  { id: 'OS009', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '海湾外馆游泳亲子套票', unitPrice: 48, count: 2, refund: 48 },
+  { id: 'OS010', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳10次卡', unitPrice: 260, count: 2, refund: 0 },
+  { id: 'OS011', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳20次卡', unitPrice: 480, count: 1, refund: 0 },
+  { id: 'OS012', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳30次卡', unitPrice: 660, count: 2, refund: 0 },
+  { id: 'OS013', venue: '晋爵会海湾外馆', orderType: '卡类订单', productType: '次卡', content: '海湾外馆游泳50次卡', unitPrice: 1050, count: 1, refund: 0 },
+  { id: 'OS014', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '沐浴露', unitPrice: 1, count: 12, refund: 0 },
+  { id: 'OS015', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '一次性浴巾', unitPrice: 5, count: 9, refund: 0 },
+  { id: 'OS016', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '泳圈', unitPrice: 35, count: 2, refund: 0 },
+  { id: 'OS017', venue: '晋爵会海湾外馆', orderType: '快捷收款订单', productType: '快捷商品', content: '英发2800泳镜', unitPrice: 129, count: 1, refund: 0 },
 ];
 
 const projectDetailCatalog: Record<Project, { name: string; weight: number }[]> = {
@@ -642,6 +685,7 @@ function DesktopDashboard() {
             { id: 'venueBooking', label: '场地预订报表', icon: CalendarDays },
             { id: 'courseTraining', label: '课程培训报表', icon: TicketCheck },
             { id: 'recognition', label: '\u786e\u8ba4\u6536\u5165\u62a5\u8868', icon: ReceiptText },
+            { id: 'orderStats', label: '订单统计', icon: ReceiptText },
           ].map((item) => (
             <button
               key={item.id}
@@ -666,7 +710,7 @@ function DesktopDashboard() {
                 <Store size={14} />
                 管理后台 / 营收分析
               </div>
-              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'recognition' ? '\u786e\u8ba4\u6536\u5165\u62a5\u8868' : dashboard === 'courseTraining' ? '课程培训报表' : dashboard === 'venueBooking' ? '场地预订报表' : dashboard === 'simpleRevenue' ? '营收统计' : '收入分析看板'}</h1>
+              <h1 className="mt-1 text-xl font-black text-slate-800">{dashboard === 'orderStats' ? '订单统计' : dashboard === 'recognition' ? '\u786e\u8ba4\u6536\u5165\u62a5\u8868' : dashboard === 'courseTraining' ? '璇剧▼鍩硅鎶ヨ〃' : dashboard === 'venueBooking' ? '鍦哄湴棰勮鎶ヨ〃' : dashboard === 'simpleRevenue' ? '钀ユ敹缁熻' : '鏀跺叆鍒嗘瀽鐪嬫澘'}</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <a href="?view=mobile" className="flex h-10 items-center rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
@@ -683,7 +727,9 @@ function DesktopDashboard() {
         </header>
 
         <section className="px-4 py-4 lg:px-6">
-          {dashboard === 'recognition' ? (
+          {dashboard === 'orderStats' ? (
+            <OrderStatisticsReport />
+          ) : dashboard === 'recognition' ? (
             <RecognitionIncomeDashboard period={period} customRange={customRange} store={store} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} />
           ) : dashboard === 'simpleRevenue' ? (
             <SimpleRevenueDashboard period={period} store={store} customRange={customRange} onPeriodChange={setPeriod} onCustomRangeChange={setCustomRange} onStoreChange={setStore} orders={filteredOrders} />
@@ -777,6 +823,251 @@ function DesktopDashboard() {
   );
 }
 
+
+
+function getOrderItemCategory(row: OrderSummaryRow) {
+  if (row.productType === '次卡') {
+    return /10次卡|20次卡|30次卡|50次卡/.test(row.content) ? '多次卡' : '门票';
+  }
+  if (row.productType === '快捷商品') {
+    return /门票|儿童票|亲子套票/.test(row.content) ? '门票' : '泳具';
+  }
+  return '-';
+}
+
+function buildOrderCategorySummaryRows(rows: OrderSummaryRow[]): OrderCategorySummaryRow[] {
+  const grouped = new Map<string, OrderCategorySummaryRow>();
+  rows.forEach((row) => {
+    const category = getOrderItemCategory(row);
+    const key = [row.venue, row.orderType, row.productType, category].join('|');
+    const current = grouped.get(key);
+    const amount = row.unitPrice * row.count;
+    if (current) {
+      current.count += row.count;
+      current.amount += amount;
+      current.refund += row.refund;
+    } else {
+      grouped.set(key, {
+        id: key,
+        venue: row.venue,
+        orderType: row.orderType,
+        productType: row.productType,
+        category,
+        count: row.count,
+        amount,
+        refund: row.refund,
+      });
+    }
+  });
+  return Array.from(grouped.values());
+}
+
+function OrderStatisticsReport() {
+  const [period, setPeriod] = useState<Period>('today');
+  const [customRange, setCustomRange] = useState<CustomDateRange>({ start: '2026-06-29', end: '2026-06-29' });
+  const [activeTab, setActiveTab] = useState<'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard'>('all');
+  const [summaryMode, setSummaryMode] = useState<'detail' | 'category'>('detail');
+  const [page, setPage] = useState(1);
+  const rows = useMemo(() => orderSummaryRows.filter((row) => {
+    if (activeTab === 'passCard') return row.productType === '次卡';
+    if (activeTab === 'timeCard') return row.productType === '时间卡';
+    if (activeTab === 'goods') return row.orderType === '快捷收款订单';
+    if (activeTab === 'courseCard') return row.productType === '课程卡';
+    return true;
+  }), [activeTab]);
+  const totals = useMemo(
+    () => rows.reduce(
+      (acc, row) => {
+        const amount = row.unitPrice * row.count;
+        acc.count += row.count;
+        acc.amount += amount;
+        acc.refund += row.refund;
+        acc.net += amount - row.refund;
+        return acc;
+      },
+      { count: 0, amount: 0, refund: 0, net: 0 },
+    ),
+    [rows],
+  );
+  const categoryRows = useMemo(() => buildOrderCategorySummaryRows(rows), [rows]);
+  const rowCount = summaryMode === 'detail' ? rows.length : categoryRows.length;
+  const pageSize = 10;
+  const totalPages = Math.max(Math.ceil(rowCount / pageSize), 1);
+  const currentPage = Math.min(page, totalPages);
+  const pagedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagedCategoryRows = categoryRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <Segmented
+          value={period}
+          customRange={customRange}
+          onChange={(nextPeriod) => {
+            setPeriod(nextPeriod);
+            setPage(1);
+          }}
+          onCustomRangeChange={(nextRange) => {
+            setCustomRange(nextRange);
+            setPage(1);
+          }}
+        />
+        <button className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600">
+          <Download size={15} />
+          导出
+        </button>
+      </div>
+
+      <Panel title="订单汇总表" icon={ReceiptText}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+            汇总维度
+            <select
+              value={summaryMode}
+              onChange={(event) => {
+                setSummaryMode(event.target.value as 'detail' | 'category');
+                setPage(1);
+              }}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-400"
+            >
+              <option value="detail">明细</option>
+              <option value="category">项目分类汇总</option>
+            </select>
+          </label>
+          <div className="text-xs font-bold text-slate-400">按当前筛选结果统计</div>
+        </div>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {[
+            { id: 'all', name: '全部' },
+            { id: 'passCard', name: '次卡统计' },
+            { id: 'timeCard', name: '时间卡统计' },
+            { id: 'goods', name: '商品销售统计' },
+            { id: 'courseCard', name: '课程卡统计' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id as 'all' | 'passCard' | 'timeCard' | 'goods' | 'courseCard');
+                setPage(1);
+              }}
+              className={cn('h-9 rounded-md px-3 text-sm font-bold', activeTab === item.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+        <div className="overflow-x-auto">
+          {summaryMode === 'detail' ? (
+            <table className="min-w-[1280px] w-full border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
+                  <th className="border-b border-slate-200 px-3 py-3">下单场馆</th>
+                  <th className="border-b border-slate-200 px-3 py-3">订单类型</th>
+                  <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
+                  <th className="border-b border-slate-200 px-3 py-3">项目分类</th>
+                  <th className="border-b border-slate-200 px-3 py-3">订单内容</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">单价</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">订单金额</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">退款金额</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedRows.map((row) => {
+                  const amount = row.unitPrice * row.count;
+                  const net = amount - row.refund;
+                  return (
+                    <tr key={row.id} className="bg-white hover:bg-slate-50/70">
+                      <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-700">{row.venue}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.orderType}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.productType}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{getOrderItemCategory(row)}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-800">{row.content}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{money(row.unitPrice)}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.count}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right font-bold tabular-nums text-slate-800">{money(amount)}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{row.refund > 0 ? money(row.refund) : '-'}</td>
+                      <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(net)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-50 text-sm font-black text-slate-900">
+                  <td className="px-3 py-3" colSpan={6}>合计</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{totals.count}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.amount)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-rose-600">{money(totals.refund)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          ) : (
+            <table className="min-w-[960px] w-full border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-left text-xs font-black text-slate-500">
+                  <th className="border-b border-slate-200 px-3 py-3">下单场馆</th>
+                  <th className="border-b border-slate-200 px-3 py-3">订单类型</th>
+                  <th className="border-b border-slate-200 px-3 py-3">产品类型</th>
+                  <th className="border-b border-slate-200 px-3 py-3">项目分类</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">订单数</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">订单金额</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">退款金额</th>
+                  <th className="border-b border-slate-200 px-3 py-3 text-right">实收金额</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedCategoryRows.map((row) => (
+                  <tr key={row.id} className="bg-white hover:bg-slate-50/70">
+                    <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-700">{row.venue}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.orderType}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.productType}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 font-bold text-slate-800">{row.category}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums">{row.count}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right font-bold tabular-nums text-slate-800">{money(row.amount)}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right tabular-nums text-rose-600">{row.refund > 0 ? money(row.refund) : '-'}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-right font-black tabular-nums text-slate-900">{money(row.amount - row.refund)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-50 text-sm font-black text-slate-900">
+                  <td className="px-3 py-3" colSpan={4}>合计</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{totals.count}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.amount)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-rose-600">{money(totals.refund)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{money(totals.net)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="font-bold text-slate-500">
+            共 {rowCount} 条，每页 10 条，当前第 {currentPage} / {totalPages} 页
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(Math.max(currentPage - 1, 1))}
+              disabled={currentPage <= 1}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              上一页
+            </button>
+            <button
+              onClick={() => setPage(Math.min(currentPage + 1, totalPages))}
+              disabled={currentPage >= totalPages}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              下一页
+            </button>
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+}
 
 function SimpleRevenueDashboard({
   period,
